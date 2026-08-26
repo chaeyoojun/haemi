@@ -2,11 +2,27 @@
   "name": "haemi",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "start": "expo start",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "prebuild": "expo prebuild --platform android --non-interactive",
+    "apk": "node scripts/build-apk.cjs",
+    "publish-apk": "powershell -NoProfile -ExecutionPolicy Bypass -File deploy/publish-apk.ps1"
+  },
   "dependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-community/datetimepicker": "9.1.0",
     "expo": "~57.0.16",
     "expo-constants": "~57.0.14",
+    "expo-document-picker": "~57.0.1",
+    "expo-file-system": "~57.0.5",
     "expo-font": "~57.0.1",
+    "expo-intent-launcher": "~57.0.1",
     "expo-linking": "~57.0.7",
+    "expo-notifications": "~57.0.14",
     "expo-router": "~57.0.16",
     "expo-splash-screen": "~57.0.8",
     "expo-status-bar": "~57.0.1",
@@ -24,12 +40,5 @@
   "devDependencies": {
     "@types/react": "~19.2.2",
     "typescript": "~6.0.3"
-  },
-  "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
-  "private": true
+  }
 }

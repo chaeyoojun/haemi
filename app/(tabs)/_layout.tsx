@@ -1,67 +1,72 @@
-import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { Icon } from '@/components/Icon';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
+import { useColorScheme } from '@/components/useColorScheme';
+import Colors from '@/constants/Colors';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme];
 
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
-        // Disable the static render of the header on web
-        // to prevent a hydration error in React Navigation v6.
+        tabBarActiveTintColor: palette.tint,
+        tabBarInactiveTintColor: palette.tabIconDefault,
+        tabBarStyle: {
+          backgroundColor: palette.card,
+          borderTopColor: palette.border,
+        },
+        headerStyle: {
+          backgroundColor: palette.background,
+        },
+        headerTintColor: palette.text,
+        headerShadowVisible: false,
         headerShown: useClientOnlyValue(false, true),
       }}>
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Tab One',
+          title: '공지',
           tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
+            <Icon ios="megaphone.fill" android="campaign" color={color} size={24} />
           ),
         }}
       />
       <Tabs.Screen
-        name="two"
+        name="spots"
         options={{
-          title: 'Tab Two',
+          title: '스팟',
           tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
-              tintColor={color}
-              size={28}
-            />
+            <Icon ios="mappin.and.ellipse" android="location_on" color={color} size={24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="repairs"
+        options={{
+          title: '수리',
+          tabBarIcon: ({ color }) => (
+            <Icon ios="wrench.and.screwdriver.fill" android="build" color={color} size={24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="models"
+        options={{
+          title: '3D',
+          tabBarIcon: ({ color }) => (
+            <Icon ios="cube.fill" android="view_in_ar" color={color} size={24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="votes"
+        options={{
+          title: '투표',
+          tabBarIcon: ({ color }) => (
+            <Icon ios="checkmark.square.fill" android="how_to_vote" color={color} size={24} />
           ),
         }}
       />

@@ -1,0 +1,55 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: haemi
+      POSTGRES_USER: haemi
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - haemi_pgdata:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c shared_buffers=64MB
+      -c effective_cache_size=128MB
+      -c work_mem=2MB
+      -c maintenance_work_mem=32MB
+      -c max_connections=20
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U haemi -d haemi"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  api:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      PORT: 4400
+      DATABASE_URL: postgresql://haemi:${POSTGRES_PASSWORD}@db:5432/haemi
+      ADMIN_USERNAME: admin
+      ADMIN_PASSWORD: hmfpv
+      UPLOAD_DIR: /data/models
+      APP_RELEASE_DIR: /data/app
+    volumes:
+      - haemi_uploads:/data/models
+      - ./releases:/data/app
+    ports:
+      - "127.0.0.1:4400:4400"
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+volumes:
+  haemi_pgdata:
+  haemi_uploads:

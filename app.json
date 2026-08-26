@@ -1,23 +1,31 @@
 {
   "expo": {
-    "name": "haemi",
+    "name": "HMFPV",
     "slug": "haemi",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "haemi",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.haemi.app"
     },
     "android": {
+      "package": "com.haemi.app",
+      "versionCode": 4,
+      "permissions": [
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.REQUEST_INSTALL_PACKAGES"
+      ],
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#000000",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "usesCleartextTraffic": true
     },
     "web": {
       "bundler": "metro",
@@ -29,14 +37,34 @@
       [
         "expo-splash-screen",
         {
+          "backgroundColor": "#FFFFFF",
           "image": "./assets/images/splash-icon.png",
+          "imageWidth": 288,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "android": {
+            "drawable": {
+              "icon": "./assets/splashscreen_logo.xml"
+            }
+          }
+        }
+      ],
+      "./plugins/withSplashPoster.js",
+      "expo-document-picker",
+      "expo-file-system",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-notifications",
+        {
+          "color": "#F07D22",
+          "defaultChannel": "repairs"
         }
       ]
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "apiUrl": "https://if.io.kr/haemi-api"
     }
   }
 }

@@ -45,3 +45,6 @@ server/uploads/
 
 # app release binaries
 releases/*.apk
+
+# emulator dumps
+bugreport*.zip

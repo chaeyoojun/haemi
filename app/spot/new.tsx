@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { Field, Input } from '@/components/Form';
+import { PlaceSearch } from '@/components/PlaceSearch';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
@@ -36,9 +37,15 @@ export default function NewSpotScreen() {
         <Field label="스팟 이름">
           <Input value={title} onChangeText={setTitle} placeholder="스팟 명칭" />
         </Field>
-        <Field label="주소 / 위치">
-          <Input value={place} onChangeText={setPlace} placeholder="주소" />
-        </Field>
+        <PlaceSearch
+          value={place}
+          onChange={setPlace}
+          onPickedName={(name) => {
+            if (!title.trim()) {
+              setTitle(name);
+            }
+          }}
+        />
         <Field label="메모">
           <Input value={description} onChangeText={setDescription} placeholder="" multiline />
         </Field>

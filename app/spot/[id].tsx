@@ -1,7 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, LayoutAnimation, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Icon } from '@/components/Icon';
+import { KakaoMapEmbed } from '@/components/KakaoMapEmbed';
+import { RefreshableScroll } from '@/components/RefreshableScroll';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
@@ -16,65 +19,85 @@ export default function SpotDetailScreen() {
   const { isAdmin } = useAuth();
   const [spot, setSpot] = useState<Spot | null>(null);
   const [error, setError] = useState('');
+  const [mapOpen, setMapOpen] = useState(false);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    api
-      .get<Spot>(`/api/spots/${id}`)
-      .then(setSpot)
-      .catch((caught) => setError(caught instanceof Error ? caught.message : '불러오지 못했습니다.'));
+    try {
+      setSpot(await api.get<Spot>(`/api/spots/${id}`));
+      setError('');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '불러오지 못했습니다.');
+    }
   }, [id]);
 
-  if (error) {
-    return (
-      <View style={[styles.screen, { backgroundColor: palette.background }]}>
-        <Text style={{ color: palette.danger }}>{error}</Text>
-      </View>
-    );
-  }
-  if (!spot) {
-    return (
-      <View style={[styles.screen, { backgroundColor: palette.background }]}>
-        <ActivityIndicator color={palette.tint} />
-      </View>
-    );
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background }]}>
-      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.title, { color: palette.text }]}>{spot.title}</Text>
-        {spot.place ? <Text style={[styles.meta, { color: palette.tint }]}>{spot.place}</Text> : null}
-        {spot.description ? <Text style={[styles.body, { color: palette.text }]}>{spot.description}</Text> : null}
-        <Text style={[styles.body, { color: palette.muted }]}>{formatDateTime(spot.createdAt)}</Text>
-      </View>
-      {isAdmin ? (
-        <Pressable
-          onPress={() =>
-            Alert.alert('스팟을 삭제할까요?', spot.title, [
-              { text: '취소', style: 'cancel' },
-              {
-                text: '삭제',
-                style: 'destructive',
-                onPress: async () => {
-                  await api.remove(`/api/spots/${spot.id}`);
-                  router.replace('/spots');
-                },
-              },
-            ])
-          }
-          style={[styles.deleteButton, { borderColor: palette.danger }]}>
-          <Text style={[styles.deleteText, { color: palette.danger }]}>삭제</Text>
-        </Pressable>
-      ) : null}
+      <RefreshableScroll onRefresh={load} contentContainerStyle={styles.content}>
+        {error && !spot ? (
+          <Text style={{ color: palette.danger }}>{error}</Text>
+        ) : !spot ? (
+          <ActivityIndicator color={palette.tint} style={{ marginTop: 24 }} />
+        ) : (
+          <>
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <Text style={[styles.title, { color: palette.text }]}>{spot.title}</Text>
+              {spot.place ? (
+                <>
+                  <View style={styles.placeRow}>
+                    <Text style={[styles.meta, { color: palette.tint, flex: 1 }]}>{spot.place}</Text>
+                    <Pressable
+                      onPress={() => {
+                        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+                        setMapOpen((open) => !open);
+                      }}
+                      hitSlop={8}
+                      accessibilityLabel={mapOpen ? '지도 닫기' : '지도에서 보기'}>
+                      <Icon ios="mappin.and.ellipse" android="location_on" color={palette.tint} size={22} />
+                    </Pressable>
+                  </View>
+                  {mapOpen ? <KakaoMapEmbed place={spot.place} height={280} /> : null}
+                </>
+              ) : null}
+              {spot.description ? <Text style={[styles.body, { color: palette.text }]}>{spot.description}</Text> : null}
+              <Text style={[styles.body, { color: palette.muted }]}>{formatDateTime(spot.createdAt)}</Text>
+            </View>
+            {isAdmin ? (
+              <Pressable
+                onPress={() =>
+                  Alert.alert('스팟을 삭제할까요?', spot.title, [
+                    { text: '취소', style: 'cancel' },
+                    {
+                      text: '삭제',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await api.remove(`/api/spots/${spot.id}`);
+                        router.replace('/spots');
+                      },
+                    },
+                  ])
+                }
+                style={[styles.deleteButton, { borderColor: palette.danger }]}>
+                <Text style={[styles.deleteText, { color: palette.danger }]}>삭제</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      </RefreshableScroll>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 20, gap: 16 },
+  screen: { flex: 1 },
+  content: { padding: 20, gap: 16, paddingBottom: 40 },
   card: { borderWidth: 1, borderRadius: 16, padding: 20, gap: 10 },
   title: { fontSize: 24, fontWeight: '700' },
+  placeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   meta: { fontSize: 16, fontWeight: '600' },
   body: { fontSize: 16, lineHeight: 24 },
   deleteButton: { borderWidth: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },

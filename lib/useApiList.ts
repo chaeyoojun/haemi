@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 
 import { api } from '@/lib/api';
 
@@ -18,9 +19,11 @@ export function useApiList<T>(path: string) {
     }
   }, [path]);
 
-  useEffect(() => {
-    reload();
-  }, [reload]);
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload])
+  );
 
   return { items, ready, error, reload, setItems };
 }

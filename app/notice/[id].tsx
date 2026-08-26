@@ -1,7 +1,8 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { RefreshableScroll } from '@/components/RefreshableScroll';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
@@ -17,61 +18,63 @@ export default function NoticeDetailScreen() {
   const [notice, setNotice] = useState<Notice | null>(null);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    api
-      .get<Notice>(`/api/notices/${id}`)
-      .then(setNotice)
-      .catch((caught) => setError(caught instanceof Error ? caught.message : '불러오지 못했습니다.'));
+    try {
+      setNotice(await api.get<Notice>(`/api/notices/${id}`));
+      setError('');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '불러오지 못했습니다.');
+    }
   }, [id]);
 
-  if (error) {
-    return (
-      <View style={[styles.screen, { backgroundColor: palette.background }]}>
-        <Text style={{ color: palette.danger }}>{error}</Text>
-      </View>
-    );
-  }
-  if (!notice) {
-    return (
-      <View style={[styles.screen, { backgroundColor: palette.background }]}>
-        <ActivityIndicator color={palette.tint} />
-      </View>
-    );
-  }
+  useEffect(() => {
+    load();
+  }, [load]);
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background }]}>
-      <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-        <Text style={[styles.title, { color: palette.text }]}>{notice.title}</Text>
-        <Text style={[styles.body, { color: palette.muted }]}>{formatDateTime(notice.createdAt)}</Text>
-        {notice.body ? <Text style={[styles.body, { color: palette.text }]}>{notice.body}</Text> : null}
-      </View>
-      {isAdmin ? (
-        <Pressable
-          onPress={() =>
-            Alert.alert('공지를 삭제할까요?', notice.title, [
-              { text: '취소', style: 'cancel' },
-              {
-                text: '삭제',
-                style: 'destructive',
-                onPress: async () => {
-                  await api.remove(`/api/notices/${notice.id}`);
-                  router.replace('/');
-                },
-              },
-            ])
-          }
-          style={[styles.deleteButton, { borderColor: palette.danger }]}>
-          <Text style={[styles.deleteText, { color: palette.danger }]}>삭제</Text>
-        </Pressable>
-      ) : null}
+      <RefreshableScroll onRefresh={load} contentContainerStyle={styles.content}>
+        {error && !notice ? (
+          <Text style={{ color: palette.danger }}>{error}</Text>
+        ) : !notice ? (
+          <ActivityIndicator color={palette.tint} style={{ marginTop: 24 }} />
+        ) : (
+          <>
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+              <Text style={[styles.title, { color: palette.text }]}>{notice.title}</Text>
+              <Text style={[styles.body, { color: palette.muted }]}>{formatDateTime(notice.createdAt)}</Text>
+              {notice.body ? <Text style={[styles.body, { color: palette.text }]}>{notice.body}</Text> : null}
+            </View>
+            {isAdmin ? (
+              <Pressable
+                onPress={() =>
+                  Alert.alert('공지를 삭제할까요?', notice.title, [
+                    { text: '취소', style: 'cancel' },
+                    {
+                      text: '삭제',
+                      style: 'destructive',
+                      onPress: async () => {
+                        await api.remove(`/api/notices/${notice.id}`);
+                        router.replace('/');
+                      },
+                    },
+                  ])
+                }
+                style={[styles.deleteButton, { borderColor: palette.danger }]}>
+                <Text style={[styles.deleteText, { color: palette.danger }]}>삭제</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      </RefreshableScroll>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, padding: 20, gap: 16 },
+  screen: { flex: 1 },
+  content: { padding: 20, gap: 16, paddingBottom: 40 },
   card: { borderWidth: 1, borderRadius: 16, padding: 20, gap: 10 },
   title: { fontSize: 24, fontWeight: '700' },
   body: { fontSize: 16, lineHeight: 24 },

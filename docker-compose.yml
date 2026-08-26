@@ -37,6 +37,7 @@ services:
       ADMIN_PASSWORD: hmfpv
       UPLOAD_DIR: /data/models
       APP_RELEASE_DIR: /data/app
+      KAKAO_REST_API_KEY: ${KAKAO_REST_API_KEY:-}
     volumes:
       - haemi_uploads:/data/models
       - ./releases:/data/app

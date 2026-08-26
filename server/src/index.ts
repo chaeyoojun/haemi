@@ -95,6 +95,65 @@ app.get(
   })
 );
 
+app.get(
+  '/api/places',
+  asyncHandler(async (req, res) => {
+    const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (query.length < 2) {
+      res.json({ places: [] });
+      return;
+    }
+    const key = process.env.KAKAO_REST_API_KEY || '';
+    if (!key) {
+      throw new HttpError(503, '주소 검색이 아직 설정되지 않았습니다.');
+    }
+
+    const headers = { Authorization: `KakaoAK ${key}` };
+    const keywordUrl = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=10`;
+    const keywordRes = await fetch(keywordUrl, { headers });
+    if (!keywordRes.ok) {
+      throw new HttpError(502, '카카오 지도를 찾지 못했습니다.');
+    }
+    const keywordJson = (await keywordRes.json()) as {
+      documents?: Array<{
+        id?: string;
+        place_name?: string;
+        address_name?: string;
+        road_address_name?: string;
+        x?: string;
+        y?: string;
+      }>;
+    };
+    let places = (keywordJson.documents || []).map((doc) => ({
+      id: doc.id || `${doc.x},${doc.y},${doc.place_name}`,
+      name: doc.place_name || '',
+      address: doc.road_address_name || doc.address_name || '',
+    }));
+
+    if (places.length === 0) {
+      const addressUrl = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}&size=10`;
+      const addressRes = await fetch(addressUrl, { headers });
+      if (addressRes.ok) {
+        const addressJson = (await addressRes.json()) as {
+          documents?: Array<{
+            address_name?: string;
+            x?: string;
+            y?: string;
+            road_address?: { address_name?: string };
+          }>;
+        };
+        places = (addressJson.documents || []).map((doc) => ({
+          id: `${doc.x},${doc.y},${doc.address_name}`,
+          name: doc.road_address?.address_name || doc.address_name || '',
+          address: doc.address_name || '',
+        }));
+      }
+    }
+
+    res.json({ places });
+  })
+);
+
 app.post(
   '/api/spots',
   asyncHandler(async (req, res) => {

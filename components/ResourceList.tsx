@@ -1,8 +1,9 @@
 import { Link, type Href } from 'expo-router';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
+import { RefreshableScroll } from '@/components/RefreshableScroll';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 
@@ -16,7 +17,7 @@ type Props = {
   createLabel: string;
   canCreate?: boolean;
   header?: ReactNode;
-  onRetry: () => void;
+  onRetry: () => void | Promise<void>;
   children: ReactNode;
 };
 
@@ -38,7 +39,7 @@ export function ResourceList({
   return (
     <View style={[styles.screen, { backgroundColor: palette.background }]}>
       {header}
-      <ScrollView contentContainerStyle={styles.content}>
+      <RefreshableScroll onRefresh={onRetry} contentContainerStyle={styles.content}>
         {error ? (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Text style={[styles.body, { color: palette.danger }]}>{error}</Text>
@@ -53,7 +54,7 @@ export function ResourceList({
         ) : (
           children
         )}
-      </ScrollView>
+      </RefreshableScroll>
       {canCreate ? (
         <Link href={createHref} asChild>
           <Pressable

@@ -1,10 +1,12 @@
 import Constants from 'expo-constants';
 
+const PRODUCTION_API_URL = 'https://if.io.kr/haemi-api';
 const extraUrl = Constants.expoConfig?.extra?.apiUrl;
+
 export const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   (typeof extraUrl === 'string' && extraUrl) ||
-  'https://if.io.kr/haemi-api';
+  PRODUCTION_API_URL;
 
 type ApiError = {
   error?: string;

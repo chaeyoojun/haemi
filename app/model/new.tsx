@@ -11,7 +11,7 @@ import type { Model3d } from '@/lib/types';
 
 const empty: ModelFormValues = {
   title: '',
-  format: 'STL',
+  format: '',
   fileName: '',
   url: '',
   description: '',

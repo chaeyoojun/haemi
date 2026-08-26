@@ -9,12 +9,19 @@ export type Spot = {
 
 export type RepairStatus = 'pending' | 'doing' | 'done';
 
+export type RepairPhoto = {
+  id: string;
+  fileName: string;
+  url: string;
+};
+
 export type Repair = {
   id: string;
   title: string;
   place: string;
   description: string;
   status: RepairStatus;
+  photos?: RepairPhoto[];
   createdAt: string;
   updatedAt: string;
 };

@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { InlineMoreActions } from '@/components/InlineMoreActions';
 import { RefreshableScroll } from '@/components/RefreshableScroll';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
@@ -19,6 +20,7 @@ export default function VoteDetailScreen() {
   const [vote, setVote] = useState<Vote | null>(null);
   const [votedOptionId, setVotedOptionId] = useState('');
   const [error, setError] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -75,7 +77,36 @@ export default function VoteDetailScreen() {
         ) : (
           <>
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-              <Text style={[styles.title, { color: palette.text }]}>{vote.title}</Text>
+              <View style={styles.header}>
+                <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
+                  {vote.title}
+                </Text>
+                {isAdmin ? (
+                  <InlineMoreActions
+                    open={menuOpen}
+                    onToggle={() => setMenuOpen((open) => !open)}
+                    actions={[
+                      { label: '수정', onPress: () => router.push(`/vote/edit/${vote.id}`) },
+                      {
+                        label: '삭제',
+                        danger: true,
+                        onPress: () =>
+                          Alert.alert('투표를 삭제할까요?', vote.title, [
+                            { text: '취소', style: 'cancel' },
+                            {
+                              text: '삭제',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await api.remove(`/api/votes/${vote.id}`);
+                                router.replace('/votes');
+                              },
+                            },
+                          ]),
+                      },
+                    ]}
+                  />
+                ) : null}
+              </View>
               {vote.body ? <Text style={[styles.body, { color: palette.text }]}>{vote.body}</Text> : null}
               {vote.startsAt && vote.endsAt ? (
                 <Text style={[styles.body, { color: palette.muted }]}>{formatPeriod(vote.startsAt, vote.endsAt)}</Text>
@@ -104,25 +135,6 @@ export default function VoteDetailScreen() {
                 </Pressable>
               );
             })}
-            {isAdmin ? (
-              <Pressable
-                onPress={() =>
-                  Alert.alert('투표를 삭제할까요?', vote.title, [
-                    { text: '취소', style: 'cancel' },
-                    {
-                      text: '삭제',
-                      style: 'destructive',
-                      onPress: async () => {
-                        await api.remove(`/api/votes/${vote.id}`);
-                        router.replace('/votes');
-                      },
-                    },
-                  ])
-                }
-                style={[styles.deleteButton, { borderColor: palette.danger }]}>
-                <Text style={[styles.deleteText, { color: palette.danger }]}>삭제</Text>
-              </Pressable>
-            ) : null}
           </>
         )}
       </RefreshableScroll>
@@ -134,7 +146,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: 20, gap: 10, paddingBottom: 40 },
   card: { borderWidth: 1, borderRadius: 16, padding: 20, gap: 10, marginBottom: 6 },
-  title: { fontSize: 24, fontWeight: '700' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28, overflow: 'visible', zIndex: 2 },
+  title: { flex: 1, fontSize: 24, fontWeight: '700' },
   body: { fontSize: 16, lineHeight: 24 },
   option: {
     borderWidth: 1,
@@ -147,6 +160,4 @@ const styles = StyleSheet.create({
   },
   optionLabel: { fontSize: 16, fontWeight: '600', flex: 1, paddingRight: 12 },
   optionCount: { fontSize: 15, fontWeight: '700' },
-  deleteButton: { marginTop: 8, borderWidth: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  deleteText: { fontSize: 15, fontWeight: '700' },
 });

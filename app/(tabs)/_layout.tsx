@@ -11,13 +11,10 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      tabBar={() => null}
       screenOptions={{
         tabBarActiveTintColor: palette.tint,
         tabBarInactiveTintColor: palette.tabIconDefault,
-        tabBarStyle: {
-          backgroundColor: palette.card,
-          borderTopColor: palette.border,
-        },
         headerStyle: {
           backgroundColor: palette.background,
         },

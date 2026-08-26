@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { Field, Input } from '@/components/Form';
+import { PhotoAttach, toRepairFormData, type PickedPhoto } from '@/components/PhotoAttach';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
@@ -14,6 +15,7 @@ export default function NewRepairScreen() {
   const palette = Colors[useColorScheme()];
   const [title, setTitle] = useState('');
   const [place, setPlace] = useState('');
+  const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -22,7 +24,10 @@ export default function NewRepairScreen() {
     setSaving(true);
     setError('');
     try {
-      const repair = await api.create<Repair>('/api/repairs', { title, place, description });
+      const repair =
+        photos.length > 0
+          ? await api.upload<Repair>('/api/repairs', toRepairFormData({ title, place, description, photos }))
+          : await api.create<Repair>('/api/repairs', { title, place, description });
       router.replace(detailHref('/repair', repair.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '저장하지 못했습니다.');
@@ -39,6 +44,7 @@ export default function NewRepairScreen() {
         <Field label="의뢰인">
           <Input value={place} onChangeText={setPlace} placeholder="이름" />
         </Field>
+        <PhotoAttach photos={photos} onChange={setPhotos} />
         <Field label="내용">
           <Input value={description} onChangeText={setDescription} placeholder="증상" multiline />
         </Field>

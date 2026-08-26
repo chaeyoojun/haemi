@@ -20,6 +20,21 @@ class HttpError extends Error {
   }
 }
 
+const MAP_SHARE_URL =
+  /https?:\/\/(?:(?:www\.)?(?:tmap\.life|tmap\.co\.kr)|(?:m\.)?map\.kakao\.com|kko\.to|kko\.kakao\.com|naver\.me|map\.naver\.com|nmap\.naver\.com|maps\.app\.goo\.gl|maps\.google\.com|goo\.gl\/maps)[^\s]*/gi;
+
+function stripMapShareUrls(text: string) {
+  return text
+    .replace(MAP_SHARE_URL, '')
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function spotPayload<T extends { description: string }>(spot: T) {
+  return { ...spot, description: stripMapShareUrls(spot.description) };
+}
+
 function text(value: unknown, field: string, required = true) {
   if (typeof value !== 'string') {
     if (required) {
@@ -91,9 +106,105 @@ app.get(
   '/api/spots',
   asyncHandler(async (_req, res) => {
     const spots = await prisma.spot.findMany({ orderBy: { createdAt: 'desc' } });
-    res.json(spots);
+    res.json(spots.map(spotPayload));
   })
 );
+
+type PlaceHit = {
+  id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+};
+
+function parseCoord(value?: string) {
+  const coord = Number(value);
+  return Number.isFinite(coord) ? coord : null;
+}
+
+function toPlaceHit(doc: {
+  id?: string;
+  name: string;
+  address: string;
+  x?: string;
+  y?: string;
+}): PlaceHit | null {
+  const lng = parseCoord(doc.x);
+  const lat = parseCoord(doc.y);
+  if (lat == null || lng == null) {
+    return null;
+  }
+  return {
+    id: doc.id || `${lng},${lat},${doc.name}`,
+    name: doc.name,
+    address: doc.address,
+    lat,
+    lng,
+  };
+}
+
+async function searchKakaoPlaces(query: string): Promise<PlaceHit[]> {
+  const key = process.env.KAKAO_REST_API_KEY || '';
+  if (!key) {
+    throw new HttpError(503, '주소 검색이 아직 설정되지 않았습니다.');
+  }
+
+  const headers = { Authorization: `KakaoAK ${key}` };
+  const keywordUrl = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=10`;
+  const keywordRes = await fetch(keywordUrl, { headers });
+  if (!keywordRes.ok) {
+    throw new HttpError(502, '카카오 지도를 찾지 못했습니다.');
+  }
+  const keywordJson = (await keywordRes.json()) as {
+    documents?: Array<{
+      id?: string;
+      place_name?: string;
+      address_name?: string;
+      road_address_name?: string;
+      x?: string;
+      y?: string;
+    }>;
+  };
+  let places = (keywordJson.documents || [])
+    .map((doc) =>
+      toPlaceHit({
+        id: doc.id,
+        name: doc.place_name || '',
+        address: doc.road_address_name || doc.address_name || '',
+        x: doc.x,
+        y: doc.y,
+      })
+    )
+    .filter((place): place is PlaceHit => place != null);
+
+  if (places.length === 0) {
+    const addressUrl = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}&size=10`;
+    const addressRes = await fetch(addressUrl, { headers });
+    if (addressRes.ok) {
+      const addressJson = (await addressRes.json()) as {
+        documents?: Array<{
+          address_name?: string;
+          x?: string;
+          y?: string;
+          road_address?: { address_name?: string };
+        }>;
+      };
+      places = (addressJson.documents || [])
+        .map((doc) =>
+          toPlaceHit({
+            name: doc.road_address?.address_name || doc.address_name || '',
+            address: doc.address_name || '',
+            x: doc.x,
+            y: doc.y,
+          })
+        )
+        .filter((place): place is PlaceHit => place != null);
+    }
+  }
+
+  return places;
+}
 
 app.get(
   '/api/places',
@@ -103,54 +214,54 @@ app.get(
       res.json({ places: [] });
       return;
     }
+    res.json({ places: await searchKakaoPlaces(query) });
+  })
+);
+
+app.get(
+  '/api/map',
+  asyncHandler(async (req, res) => {
+    const query = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    if (query.length < 2) {
+      throw new HttpError(400, '주소를 입력해 주세요.');
+    }
+    const [place] = await searchKakaoPlaces(query);
+    if (!place) {
+      throw new HttpError(404, '지도를 찾지 못했습니다.');
+    }
+    res.json({ lat: place.lat, lng: place.lng, name: place.name, address: place.address });
+  })
+);
+
+app.get(
+  '/api/map/reverse',
+  asyncHandler(async (req, res) => {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new HttpError(400, '좌표가 올바르지 않습니다.');
+    }
     const key = process.env.KAKAO_REST_API_KEY || '';
     if (!key) {
       throw new HttpError(503, '주소 검색이 아직 설정되지 않았습니다.');
     }
-
-    const headers = { Authorization: `KakaoAK ${key}` };
-    const keywordUrl = `https://dapi.kakao.com/v2/local/search/keyword.json?query=${encodeURIComponent(query)}&size=10`;
-    const keywordRes = await fetch(keywordUrl, { headers });
-    if (!keywordRes.ok) {
-      throw new HttpError(502, '카카오 지도를 찾지 못했습니다.');
+    const url = `https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${encodeURIComponent(String(lng))}&y=${encodeURIComponent(String(lat))}`;
+    const kakaoRes = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } });
+    if (!kakaoRes.ok) {
+      throw new HttpError(502, '주소를 찾지 못했습니다.');
     }
-    const keywordJson = (await keywordRes.json()) as {
+    const json = (await kakaoRes.json()) as {
       documents?: Array<{
-        id?: string;
-        place_name?: string;
-        address_name?: string;
-        road_address_name?: string;
-        x?: string;
-        y?: string;
+        address?: { address_name?: string };
+        road_address?: { address_name?: string };
       }>;
     };
-    let places = (keywordJson.documents || []).map((doc) => ({
-      id: doc.id || `${doc.x},${doc.y},${doc.place_name}`,
-      name: doc.place_name || '',
-      address: doc.road_address_name || doc.address_name || '',
-    }));
-
-    if (places.length === 0) {
-      const addressUrl = `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(query)}&size=10`;
-      const addressRes = await fetch(addressUrl, { headers });
-      if (addressRes.ok) {
-        const addressJson = (await addressRes.json()) as {
-          documents?: Array<{
-            address_name?: string;
-            x?: string;
-            y?: string;
-            road_address?: { address_name?: string };
-          }>;
-        };
-        places = (addressJson.documents || []).map((doc) => ({
-          id: `${doc.x},${doc.y},${doc.address_name}`,
-          name: doc.road_address?.address_name || doc.address_name || '',
-          address: doc.address_name || '',
-        }));
-      }
+    const doc = json.documents?.[0];
+    const address = doc?.road_address?.address_name || doc?.address?.address_name || '';
+    if (!address) {
+      throw new HttpError(404, '주소를 찾지 못했습니다.');
     }
-
-    res.json({ places });
+    res.json({ address, lat, lng });
   })
 );
 
@@ -161,10 +272,10 @@ app.post(
       data: {
         title: text(req.body.title, '스팟 이름'),
         place: text(req.body.place, '장소', false),
-        description: text(req.body.description, '설명', false),
+        description: stripMapShareUrls(text(req.body.description, '설명', false)),
       },
     });
-    res.status(201).json(spot);
+    res.status(201).json(spotPayload(spot));
   })
 );
 
@@ -175,7 +286,7 @@ app.get(
     if (!spot) {
       throw new HttpError(404, '스팟을 찾을 수 없습니다.');
     }
-    res.json(spot);
+    res.json(spotPayload(spot));
   })
 );
 
@@ -188,10 +299,10 @@ app.patch(
       data: {
         ...(req.body.title != null ? { title: text(req.body.title, '스팟 이름') } : {}),
         ...(req.body.place != null ? { place: text(req.body.place, '장소', false) } : {}),
-        ...(req.body.description != null ? { description: text(req.body.description, '설명', false) } : {}),
+        ...(req.body.description != null ? { description: stripMapShareUrls(text(req.body.description, '설명', false)) } : {}),
       },
     });
-    res.json(spot);
+    res.json(spotPayload(spot));
   })
 );
 
@@ -205,6 +316,50 @@ app.delete(
 );
 
 const repairStatuses = new Set(['pending', 'doing', 'done']);
+const repairPhotoInclude = { photos: { orderBy: { sort: 'asc' as const } } };
+
+function repairPayload(repair: {
+  id: string;
+  title: string;
+  place: string;
+  description: string;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+  photos: Array<{ id: string; fileName: string; sort: number }>;
+}) {
+  return {
+    ...repair,
+    photos: repair.photos.map((photo) => ({
+      id: photo.id,
+      fileName: photo.fileName,
+      url: `/api/repairs/${repair.id}/photos/${photo.id}`,
+    })),
+  };
+}
+
+async function saveRepairPhotos(repairId: string, files: Express.Multer.File[]) {
+  if (files.length > 3) {
+    for (const file of files) {
+      fs.rmSync(file.path, { force: true });
+    }
+    throw new HttpError(400, '사진은 최대 3장까지 첨부할 수 있습니다.');
+  }
+  for (const [index, file] of files.entries()) {
+    if (!String(file.mimetype || '').startsWith('image/')) {
+      fs.rmSync(file.path, { force: true });
+      throw new HttpError(400, '이미지 파일만 첨부할 수 있습니다.');
+    }
+    const photo = await prisma.repairPhoto.create({
+      data: {
+        repairId,
+        fileName: file.originalname || `photo-${index + 1}.jpg`,
+        sort: index,
+      },
+    });
+    keepUpload(file.path, photo.id, photo.fileName);
+  }
+}
 
 async function sendPushToAll(payload: {
   title: string;
@@ -263,34 +418,79 @@ function notifyNoticeCreated(id: string, title: string, body: string) {
 app.get(
   '/api/repairs',
   asyncHandler(async (_req, res) => {
-    const repairs = await prisma.repair.findMany({ orderBy: { createdAt: 'desc' } });
-    res.json(repairs);
+    const repairs = await prisma.repair.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: repairPhotoInclude,
+    });
+    res.json(repairs.map(repairPayload));
   })
 );
 
 app.post(
   '/api/repairs',
+  upload.array('photos', 3),
   asyncHandler(async (req, res) => {
+    const body = req.body ?? {};
+    const files = (Array.isArray(req.files) ? req.files : []) as Express.Multer.File[];
     const repair = await prisma.repair.create({
       data: {
-        title: text(req.body.title, '수리 제목'),
-        place: text(req.body.place, '장소', false),
-        description: text(req.body.description, '내용', false),
+        title: text(body.title, '수리 제목'),
+        place: text(body.place, '장소', false),
+        description: text(body.description, '내용', false),
         status: 'pending',
       },
     });
-    res.status(201).json(repair);
+    try {
+      await saveRepairPhotos(repair.id, files);
+    } catch (error) {
+      const photos = await prisma.repairPhoto.findMany({ where: { repairId: repair.id } });
+      for (const photo of photos) {
+        removeUploadsFor(photo.id);
+      }
+      await prisma.repair.delete({ where: { id: repair.id } });
+      throw error;
+    }
+    const saved = await prisma.repair.findUniqueOrThrow({
+      where: { id: repair.id },
+      include: repairPhotoInclude,
+    });
+    res.status(201).json(repairPayload(saved));
+  })
+);
+
+app.get(
+  '/api/repairs/:id/photos/:photoId',
+  asyncHandler(async (req, res) => {
+    const repairId = idParam(req);
+    const photoId = Array.isArray(req.params['photoId']) ? req.params['photoId'][0] : req.params['photoId'];
+    if (!photoId) {
+      throw new HttpError(400, 'id가 필요합니다.');
+    }
+    const photo = await prisma.repairPhoto.findFirst({
+      where: { id: photoId, repairId },
+    });
+    if (!photo) {
+      throw new HttpError(404, '사진을 찾을 수 없습니다.');
+    }
+    const filePath = storedPath(photo.id, photo.fileName || 'photo.jpg');
+    if (!fs.existsSync(filePath)) {
+      throw new HttpError(404, '저장된 사진을 찾을 수 없습니다.');
+    }
+    res.sendFile(path.resolve(filePath));
   })
 );
 
 app.get(
   '/api/repairs/:id',
   asyncHandler(async (req, res) => {
-    const repair = await prisma.repair.findUnique({ where: { id: idParam(req) } });
+    const repair = await prisma.repair.findUnique({
+      where: { id: idParam(req) },
+      include: repairPhotoInclude,
+    });
     if (!repair) {
       throw new HttpError(404, '수리 내역을 찾을 수 없습니다.');
     }
-    res.json(repair);
+    res.json(repairPayload(repair));
   })
 );
 
@@ -317,13 +517,14 @@ app.patch(
         ...(req.body.description != null ? { description: text(req.body.description, '내용', false) } : {}),
         ...(status != null ? { status } : {}),
       },
+      include: repairPhotoInclude,
     });
     if (status === 'done' && previous.status !== 'done') {
       notifyRepairDone(repair.title).catch((error) => {
         console.error('repair done notification failed', error);
       });
     }
-    res.json(repair);
+    res.json(repairPayload(repair));
   })
 );
 
@@ -331,7 +532,12 @@ app.delete(
   '/api/repairs/:id',
   asyncHandler(async (req, res) => {
     requireAdmin(req);
-    await prisma.repair.delete({ where: { id: idParam(req) } });
+    const id = idParam(req);
+    const photos = await prisma.repairPhoto.findMany({ where: { repairId: id } });
+    for (const photo of photos) {
+      removeUploadsFor(photo.id);
+    }
+    await prisma.repair.delete({ where: { id } });
     res.status(204).end();
   })
 );
@@ -453,6 +659,61 @@ app.get(
     if (!vote) {
       throw new HttpError(404, '투표를 찾을 수 없습니다.');
     }
+    res.json(vote);
+  })
+);
+
+app.patch(
+  '/api/votes/:id',
+  asyncHandler(async (req, res) => {
+    requireAdmin(req);
+    const id = idParam(req);
+    const existing = await prisma.vote.findUnique({
+      where: { id },
+      include: voteInclude,
+    });
+    if (!existing) {
+      throw new HttpError(404, '투표를 찾을 수 없습니다.');
+    }
+
+    const startsAt = req.body.startsAt != null ? dateField(req.body.startsAt, '시작') : existing.startsAt;
+    const endsAt = req.body.endsAt != null ? dateField(req.body.endsAt, '마감') : existing.endsAt;
+    if (endsAt.getTime() <= startsAt.getTime()) {
+      throw new HttpError(400, '마감은 시작 이후여야 합니다.');
+    }
+
+    if (Array.isArray(req.body.options)) {
+      const labels = req.body.options
+        .map((option: unknown) => (typeof option === 'string' ? option.trim() : ''))
+        .filter(Boolean);
+      if (labels.length < 2) {
+        throw new HttpError(400, '선택지는 2개 이상 넣어 주세요.');
+      }
+      const current = existing.options;
+      for (const [index, label] of labels.entries()) {
+        const option = current[index];
+        if (option) {
+          await prisma.voteOption.update({ where: { id: option.id }, data: { label } });
+        } else {
+          await prisma.voteOption.create({ data: { voteId: id, label } });
+        }
+      }
+      const extra = current.slice(labels.length);
+      if (extra.length > 0) {
+        await prisma.voteOption.deleteMany({ where: { id: { in: extra.map((option) => option.id) } } });
+      }
+    }
+
+    const vote = await prisma.vote.update({
+      where: { id },
+      data: {
+        ...(req.body.title != null ? { title: text(req.body.title, '투표 제목') } : {}),
+        ...(req.body.body != null ? { body: text(req.body.body, '설명', false) } : {}),
+        ...(req.body.startsAt != null ? { startsAt } : {}),
+        ...(req.body.endsAt != null ? { endsAt } : {}),
+      },
+      include: voteInclude,
+    });
     res.json(vote);
   })
 );
@@ -671,6 +932,19 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   res.status(500).json({ error: '서버 오류가 발생했습니다.' });
 });
 
+async function cleanupLegacySpotNotes() {
+  const spots = await prisma.spot.findMany();
+  for (const spot of spots) {
+    const description = stripMapShareUrls(spot.description);
+    if (description !== spot.description) {
+      await prisma.spot.update({ where: { id: spot.id }, data: { description } });
+    }
+  }
+}
+
 app.listen(port, '0.0.0.0', () => {
   console.log(`haemi-api listening on ${port}`);
+  void cleanupLegacySpotNotes().catch((error) => {
+    console.error('failed to clean legacy spot map links', error);
+  });
 });

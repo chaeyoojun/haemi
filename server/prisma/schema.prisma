@@ -17,13 +17,25 @@ model Spot {
 }
 
 model Repair {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   title       String
-  place       String   @default("")
-  description String   @default("")
-  status      String   @default("pending")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  place       String        @default("")
+  description String        @default("")
+  status      String        @default("pending")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  photos      RepairPhoto[]
+}
+
+model RepairPhoto {
+  id        String   @id @default(cuid())
+  repairId  String
+  fileName  String
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+  repair    Repair   @relation(fields: [repairId], references: [id], onDelete: Cascade)
+
+  @@index([repairId])
 }
 
 model Notice {

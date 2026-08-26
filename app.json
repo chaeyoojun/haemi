@@ -2,7 +2,7 @@
   "expo": {
     "name": "HMFPV",
     "slug": "haemi",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "haemi",
@@ -13,7 +13,7 @@
     },
     "android": {
       "package": "com.haemi.app",
-      "versionCode": 5,
+      "versionCode": 6,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.REQUEST_INSTALL_PACKAGES"
@@ -50,6 +50,14 @@
       "./plugins/withSplashPoster.js",
       "expo-document-picker",
       "expo-file-system",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "수리 요청에 사진을 첨부합니다.",
+          "cameraPermission": "수리 요청에 사진을 첨부합니다.",
+          "microphonePermission": false
+        }
+      ],
       "@react-native-community/datetimepicker",
       [
         "expo-notifications",

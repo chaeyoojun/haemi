@@ -19,6 +19,7 @@ export function Input({
   onChangeText,
   placeholder,
   multiline,
+  minHeight,
   secureTextEntry,
   autoCapitalize,
   autoCorrect,
@@ -27,6 +28,7 @@ export function Input({
   onChangeText: (value: string) => void;
   placeholder: string;
   multiline?: boolean;
+  minHeight?: number;
   secureTextEntry?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   autoCorrect?: boolean;
@@ -45,6 +47,7 @@ export function Input({
       style={[
         styles.input,
         multiline ? styles.multiline : null,
+        multiline && minHeight ? { minHeight } : null,
         { color: palette.text, backgroundColor: palette.card, borderColor: palette.border },
       ]}
     />

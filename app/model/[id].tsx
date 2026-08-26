@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { InlineMoreActions } from '@/components/InlineMoreActions';
 import { RefreshableScroll } from '@/components/RefreshableScroll';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
@@ -17,6 +18,7 @@ export default function ModelDetailScreen() {
   const { isAdmin } = useAuth();
   const [model, setModel] = useState<Model3d | null>(null);
   const [error, setError] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -44,7 +46,36 @@ export default function ModelDetailScreen() {
         ) : (
           <>
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
-              <Text style={[styles.title, { color: palette.text }]}>{model.title}</Text>
+              <View style={styles.header}>
+                <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
+                  {model.title}
+                </Text>
+                {isAdmin ? (
+                  <InlineMoreActions
+                    open={menuOpen}
+                    onToggle={() => setMenuOpen((open) => !open)}
+                    actions={[
+                      { label: '수정', onPress: () => router.push(`/model/edit/${model.id}`) },
+                      {
+                        label: '삭제',
+                        danger: true,
+                        onPress: () =>
+                          Alert.alert('3D 파일을 삭제할까요?', model.title, [
+                            { text: '취소', style: 'cancel' },
+                            {
+                              text: '삭제',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await api.remove(`/api/models/${model.id}`);
+                                router.replace('/models');
+                              },
+                            },
+                          ]),
+                      },
+                    ]}
+                  />
+                ) : null}
+              </View>
               {model.format ? <Text style={[styles.meta, { color: palette.tint }]}>{model.format}</Text> : null}
               {model.fileName ? <Text style={[styles.body, { color: palette.text }]}>{model.fileName}</Text> : null}
               {model.description ? <Text style={[styles.body, { color: palette.text }]}>{model.description}</Text> : null}
@@ -54,32 +85,6 @@ export default function ModelDetailScreen() {
               <Pressable onPress={() => Linking.openURL(download)} style={[styles.submit, { backgroundColor: palette.tint }]}>
                 <Text style={styles.submitText}>다운로드</Text>
               </Pressable>
-            ) : null}
-            {isAdmin ? (
-              <>
-                <Pressable
-                  onPress={() => router.push(`/model/edit/${model.id}`)}
-                  style={[styles.submit, { backgroundColor: palette.tint }]}>
-                  <Text style={styles.submitText}>수정</Text>
-                </Pressable>
-                <Pressable
-                  onPress={() =>
-                    Alert.alert('3D 파일을 삭제할까요?', model.title, [
-                      { text: '취소', style: 'cancel' },
-                      {
-                        text: '삭제',
-                        style: 'destructive',
-                        onPress: async () => {
-                          await api.remove(`/api/models/${model.id}`);
-                          router.replace('/models');
-                        },
-                      },
-                    ])
-                  }
-                  style={[styles.deleteButton, { borderColor: palette.danger }]}>
-                  <Text style={[styles.deleteText, { color: palette.danger }]}>삭제</Text>
-                </Pressable>
-              </>
             ) : null}
           </>
         )}
@@ -92,11 +97,10 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: 20, gap: 12, paddingBottom: 40 },
   card: { borderWidth: 1, borderRadius: 16, padding: 20, gap: 10 },
-  title: { fontSize: 24, fontWeight: '700' },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28, overflow: 'visible', zIndex: 2 },
+  title: { flex: 1, fontSize: 24, fontWeight: '700' },
   meta: { fontSize: 16, fontWeight: '600' },
   body: { fontSize: 16, lineHeight: 24 },
   submit: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
-  deleteButton: { borderWidth: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
-  deleteText: { fontSize: 15, fontWeight: '700' },
 });

@@ -1,5 +1,5 @@
-import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useNavigation, useRouter } from 'expo-router';
+import { useCallback, useLayoutEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 
 import { Field, Input } from '@/components/Form';
@@ -12,6 +12,7 @@ import type { Spot } from '@/lib/types';
 
 export default function NewSpotScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
   const palette = Colors[useColorScheme()];
   const [title, setTitle] = useState('');
   const [place, setPlace] = useState('');
@@ -19,7 +20,7 @@ export default function NewSpotScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const onSubmit = async () => {
+  const onSubmit = useCallback(async () => {
     setSaving(true);
     setError('');
     try {
@@ -29,7 +30,23 @@ export default function NewSpotScreen() {
       setError(caught instanceof Error ? caught.message : '저장하지 못했습니다.');
       setSaving(false);
     }
-  };
+  }, [description, place, router, title]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          onPress={() => {
+            void onSubmit();
+          }}
+          disabled={saving}
+          hitSlop={8}
+          style={[styles.headerAction, { opacity: saving ? 0.5 : 1 }]}>
+          <Text style={[styles.headerActionText, { color: palette.tint }]}>{saving ? '저장 중' : '등록'}</Text>
+        </Pressable>
+      ),
+    });
+  }, [navigation, onSubmit, palette.tint, saving]);
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -37,22 +54,11 @@ export default function NewSpotScreen() {
         <Field label="스팟 이름">
           <Input value={title} onChangeText={setTitle} placeholder="스팟 명칭" />
         </Field>
-        <PlaceSearch
-          value={place}
-          onChange={setPlace}
-          onPickedName={(name) => {
-            if (!title.trim()) {
-              setTitle(name);
-            }
-          }}
-        />
+        <PlaceSearch value={place} onChange={setPlace} />
         <Field label="메모">
-          <Input value={description} onChangeText={setDescription} placeholder="" multiline />
+          <Input value={description} onChangeText={setDescription} placeholder="" multiline minHeight={68} />
         </Field>
         {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
-        <Pressable onPress={onSubmit} disabled={saving} style={[styles.submit, { backgroundColor: palette.tint, opacity: saving ? 0.7 : 1 }]}>
-          <Text style={styles.submitText}>{saving ? '저장 중...' : '등록'}</Text>
-        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -60,6 +66,6 @@ export default function NewSpotScreen() {
 
 const styles = StyleSheet.create({
   content: { padding: 20, gap: 16, paddingBottom: 40 },
-  submit: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
-  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  headerAction: { paddingHorizontal: 8, paddingVertical: 6 },
+  headerActionText: { fontSize: 17, fontWeight: '700' },
 });

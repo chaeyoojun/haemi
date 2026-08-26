@@ -22,12 +22,13 @@ async function prepareNotifications() {
   });
 
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('repairs', {
-      name: '수리',
+    const channel = {
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#F07D22',
-    });
+    };
+    await Notifications.setNotificationChannelAsync('repairs', { ...channel, name: '수리' });
+    await Notifications.setNotificationChannelAsync('notices', { ...channel, name: '공지' });
   }
 }
 
@@ -66,6 +67,23 @@ export async function registerPushToken() {
   }
 }
 
+export function listenForNotificationOpen(openUrl: (url: string) => void) {
+  let lastHandled = '';
+  const open = (response: Notifications.NotificationResponse | null) => {
+    const id = response?.notification.request.identifier ?? '';
+    const url = response?.notification.request.content.data?.url;
+    if (!id || id === lastHandled || typeof url !== 'string' || !url.startsWith('/')) {
+      return;
+    }
+    lastHandled = id;
+    openUrl(url);
+  };
+
+  const sub = Notifications.addNotificationResponseReceivedListener(open);
+  Notifications.getLastNotificationResponseAsync().then(open).catch(() => undefined);
+  return () => sub.remove();
+}
+
 export async function promptAndRegisterNotifications() {
   try {
     await prepareNotifications();
@@ -80,7 +98,7 @@ export async function promptAndRegisterNotifications() {
       return;
     }
 
-    Alert.alert('알림 권한', '수리가 완료되면 휴대폰 알림으로 알려 드립니다. 알림을 허용할까요?', [
+    Alert.alert('알림 권한', '공지가 올라오거나 수리가 완료되면 휴대폰 알림으로 알려 드립니다. 알림을 허용할까요?', [
       {
         text: '나중에',
         style: 'cancel',

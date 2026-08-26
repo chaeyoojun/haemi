@@ -24,14 +24,13 @@ export function LoginScreen() {
   const { width: windowWidth } = useWindowDimensions();
   const heroSize = windowWidth - 56;
   const [adminForm, setAdminForm] = useState(false);
-  const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
   const onAdminLogin = () => {
     setError('');
     try {
-      loginAdmin(id, password);
+      loginAdmin(password);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '로그인하지 못했습니다.');
     }
@@ -50,15 +49,6 @@ export function LoginScreen() {
 
         {adminForm ? (
           <View style={styles.form}>
-            <Field label="아이디">
-              <Input
-                value={id}
-                onChangeText={setId}
-                placeholder="아이디"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </Field>
             <Field label="비밀번호">
               <Input
                 value={password}

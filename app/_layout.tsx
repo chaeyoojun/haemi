@@ -1,4 +1,4 @@
-import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider, useRouter, type Href } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
@@ -84,6 +84,20 @@ function SignedInApp() {
 }
 
 function RootLayoutNav() {
+  const router = useRouter();
+
+  useEffect(() => {
+    let unsub = () => {};
+    import('@/lib/notifications')
+      .then((mod) => {
+        unsub = mod.listenForNotificationOpen((url) => {
+          router.push(url as Href);
+        });
+      })
+      .catch(() => undefined);
+    return () => unsub();
+  }, [router]);
+
   return (
     <Stack
       screenOptions={{
@@ -95,6 +109,7 @@ function RootLayoutNav() {
       }}>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="spot/new" options={{ title: '스팟 등록', presentation: 'modal' }} />
+      <Stack.Screen name="spot/edit/[id]" options={{ title: '스팟 수정', presentation: 'modal' }} />
       <Stack.Screen name="spot/map" options={{ title: '카카오맵' }} />
       <Stack.Screen name="spot/[id]" options={{ title: '스팟' }} />
       <Stack.Screen name="repair/new" options={{ title: '수리 요청', presentation: 'modal' }} />

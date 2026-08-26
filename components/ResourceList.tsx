@@ -73,12 +73,14 @@ export function ItemCard({
   meta,
   body,
   onPress,
+  more,
   layout = 'stack',
 }: {
   title: string;
   meta?: string;
   body?: string;
   onPress: () => void;
+  more?: ReactNode;
   layout?: 'stack' | 'row';
 }) {
   const palette = Colors[useColorScheme()];
@@ -95,6 +97,7 @@ export function ItemCard({
             {meta}
           </Text>
         ) : null}
+        {more}
       </Pressable>
     );
   }
@@ -112,12 +115,12 @@ export function ItemCard({
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: 20, paddingBottom: 96, gap: 12 },
-  card: { borderWidth: 1, borderRadius: 16, padding: 18, gap: 8 },
+  card: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 20, paddingVertical: 20, gap: 8 },
   rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingVertical: 16,
+    paddingVertical: 22,
   },
   title: { fontSize: 18, fontWeight: '700' },
   rowTitle: { flex: 1, fontSize: 16 },

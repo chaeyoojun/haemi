@@ -3,7 +3,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from 're
 import { api } from '@/lib/api';
 
 export const ADMIN_ID = 'admin';
-export const ADMIN_PASSWORD = 'hmfpv';
+export const ADMIN_PASSWORD = '230408';
 
 export type Role = 'admin' | 'user';
 
@@ -11,7 +11,7 @@ type AuthContextValue = {
   role: Role | null;
   isAdmin: boolean;
   enterAsUser: () => void;
-  loginAdmin: (id: string, password: string) => void;
+  loginAdmin: (password: string) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -27,9 +27,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         api.clearAdminAuth();
         setRole('user');
       },
-      loginAdmin: (id, password) => {
-        if (id.trim() !== ADMIN_ID || password !== ADMIN_PASSWORD) {
-          throw new Error('아이디 또는 비밀번호가 올바르지 않습니다.');
+      loginAdmin: (password) => {
+        if (password !== ADMIN_PASSWORD) {
+          throw new Error('비밀번호가 올바르지 않습니다.');
         }
         api.setAdminAuth(ADMIN_ID, ADMIN_PASSWORD);
         setRole('admin');

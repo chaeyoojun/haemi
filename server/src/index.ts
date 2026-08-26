@@ -61,7 +61,7 @@ function dateField(value: unknown, field: string) {
 }
 
 const adminId = process.env.ADMIN_USERNAME || 'admin';
-const adminPassword = process.env.ADMIN_PASSWORD || 'hmfpv';
+const adminPassword = process.env.ADMIN_PASSWORD || '230408';
 
 function headerValue(req: Request, name: string) {
   const value = req.header(name);
@@ -182,6 +182,7 @@ app.get(
 app.patch(
   '/api/spots/:id',
   asyncHandler(async (req, res) => {
+    requireAdmin(req);
     const spot = await prisma.spot.update({
       where: { id: idParam(req) },
       data: {
@@ -205,7 +206,12 @@ app.delete(
 
 const repairStatuses = new Set(['pending', 'doing', 'done']);
 
-async function notifyRepairDone(title: string) {
+async function sendPushToAll(payload: {
+  title: string;
+  body: string;
+  data: Record<string, string>;
+  channelId: string;
+}) {
   const tokens = await prisma.pushToken.findMany();
   if (tokens.length === 0) {
     return;
@@ -213,10 +219,10 @@ async function notifyRepairDone(title: string) {
   const messages = tokens.map((item) => ({
     to: item.token,
     sound: 'default',
-    title: '수리 완료',
-    body: `${title} 수리가 완료되었습니다.`,
-    data: { url: '/repairs' },
-    channelId: 'repairs',
+    title: payload.title,
+    body: payload.body,
+    data: payload.data,
+    channelId: payload.channelId,
   }));
   for (let index = 0; index < messages.length; index += 100) {
     const chunk = messages.slice(index, index + 100);
@@ -233,6 +239,25 @@ async function notifyRepairDone(title: string) {
       throw new Error(`expo push failed: ${response.status} ${detail}`);
     }
   }
+}
+
+function notifyRepairDone(title: string) {
+  return sendPushToAll({
+    title: '수리 완료',
+    body: `${title} 수리가 완료되었습니다.`,
+    data: { url: '/repairs' },
+    channelId: 'repairs',
+  });
+}
+
+function notifyNoticeCreated(id: string, title: string, body: string) {
+  const preview = body.trim() ? `${title}\n${body.trim()}` : title;
+  return sendPushToAll({
+    title: '새 공지',
+    body: preview.length > 180 ? `${preview.slice(0, 179)}…` : preview,
+    data: { url: `/notice/${id}` },
+    channelId: 'notices',
+  });
 }
 
 app.get(
@@ -328,6 +353,9 @@ app.post(
         title: text(req.body.title, '공지 제목'),
         body: text(req.body.body, '내용', false),
       },
+    });
+    notifyNoticeCreated(notice.id, notice.title, notice.body).catch((error) => {
+      console.error('notice notification failed', error);
     });
     res.status(201).json(notice);
   })

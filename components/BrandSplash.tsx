@@ -15,7 +15,6 @@ export function BrandSplash({ onFinish }: Props) {
   const { width } = useWindowDimensions();
   const opacity = useRef(new Animated.Value(1)).current;
   const scale = useRef(new Animated.Value(0.92)).current;
-  const glow = useRef(new Animated.Value(0.4)).current;
 
   const finish = () => {
     if (finished.current) {
@@ -27,23 +26,6 @@ export function BrandSplash({ onFinish }: Props) {
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => undefined);
-
-    const pulse = Animated.loop(
-      Animated.sequence([
-        Animated.timing(glow, {
-          toValue: 1,
-          duration: 900,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(glow, {
-          toValue: 0.35,
-          duration: 900,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ])
-    );
 
     Animated.parallel([
       Animated.timing(opacity, {
@@ -60,10 +42,7 @@ export function BrandSplash({ onFinish }: Props) {
       }),
     ]).start();
 
-    pulse.start();
-
     const hold = setTimeout(() => {
-      pulse.stop();
       Animated.timing(opacity, {
         toValue: 0,
         duration: 380,
@@ -79,27 +58,13 @@ export function BrandSplash({ onFinish }: Props) {
     const fallback = setTimeout(finish, 5000);
 
     return () => {
-      pulse.stop();
       clearTimeout(hold);
       clearTimeout(fallback);
     };
-  }, [glow, opacity, scale]);
+  }, [opacity, scale]);
 
   return (
     <View style={styles.screen}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          styles.glow,
-          {
-            width: width * 0.7,
-            height: width * 0.7,
-            backgroundColor: '#F07D22',
-            opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0.08, 0.2] }),
-            transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1.08] }) }],
-          },
-        ]}
-      />
       <Animated.Image
         source={logo}
         resizeMode="contain"
@@ -124,10 +89,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  glow: {
-    position: 'absolute',
-    borderRadius: 999,
   },
   logo: {
     zIndex: 2,

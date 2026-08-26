@@ -52,6 +52,7 @@ set -e
 cd $RemoteDir
 tar -xzf deploy.tgz
 rm -f deploy.tgz
+sed -i 's/\r$//' deploy/install-nginx.sh 2>/dev/null || true
 docker compose up -d --build
 cp deploy/haemi-api.location.conf /tmp/haemi-api.location.conf
 bash deploy/install-nginx.sh
@@ -64,6 +65,7 @@ done
 echo "API health check failed"
 exit 1
 "@
+$remote = $remote -replace "`r", ""
 
 & ssh.exe @sshBase $sshTarget $remote
 if ($LASTEXITCODE -ne 0) { throw "remote deploy failed" }

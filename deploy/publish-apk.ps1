@@ -18,9 +18,10 @@ if (-not (Test-Path $Apk)) {
 }
 
 $VersionFile = Join-Path $env:TEMP "haemi-version.json"
-@"
+$json = @"
 {"version":"$Version","versionCode":$VersionCode,"notes":"$Notes"}
-"@ | Set-Content -Path $VersionFile -Encoding ascii
+"@
+[System.IO.File]::WriteAllText($VersionFile, $json.Trim() + "`n", [System.Text.UTF8Encoding]::new($false))
 
 $sshBase = @("-i", $KeyPath, "-o", "StrictHostKeyChecking=accept-new")
 $sshTarget = "${SshUser}@${ServerHost}"

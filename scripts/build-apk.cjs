@@ -34,7 +34,11 @@ execSync('npx expo prebuild --platform android', {
 });
 
 const gradleProperties = path.join(androidDir, 'gradle.properties');
-const extras = ['android.overridePathCheck=true', 'reactNativeArchitectures=arm64-v8a,x86_64'];
+const extras = [
+  'android.overridePathCheck=true',
+  'reactNativeArchitectures=arm64-v8a,x86_64',
+  'org.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=1024m -Dfile.encoding=UTF-8',
+];
 let properties = fs.readFileSync(gradleProperties, 'utf8');
 for (const extra of extras) {
   const key = extra.split('=')[0];

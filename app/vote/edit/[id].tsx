@@ -1,14 +1,14 @@
 import { Redirect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { FormScroll } from '@/components/FormScroll';
 import { cleanVoteOptions, VoteFormFields } from '@/components/VoteForm';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { detailHref } from '@/lib/nav';
-import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Vote } from '@/lib/types';
 
 export default function EditVoteScreen() {
@@ -26,7 +26,6 @@ export default function EditVoteScreen() {
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   useEffect(() => {
     if (!id) return;
@@ -104,30 +103,27 @@ export default function EditVoteScreen() {
   }
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
-        <VoteFormFields
-          title={title}
-          body={body}
-          options={options}
-          allowMultiple={allowMultiple}
-          startsAt={startsAt}
-          endsAt={endsAt}
-          onTitle={setTitle}
-          onBody={setBody}
-          onOptions={setOptions}
-          onAllowMultiple={setAllowMultiple}
-          onStartsAt={setStartsAt}
-          onEndsAt={setEndsAt}
-        />
-        {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
-      </ScrollView>
-    </KeyboardAvoidingView>
+    <FormScroll>
+      <VoteFormFields
+        title={title}
+        body={body}
+        options={options}
+        allowMultiple={allowMultiple}
+        startsAt={startsAt}
+        endsAt={endsAt}
+        onTitle={setTitle}
+        onBody={setBody}
+        onOptions={setOptions}
+        onAllowMultiple={setAllowMultiple}
+        onStartsAt={setStartsAt}
+        onEndsAt={setEndsAt}
+      />
+      {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
+    </FormScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, gap: 16, paddingBottom: 40 },
   center: { flex: 1, padding: 20, justifyContent: 'center' },
   headerAction: { paddingHorizontal: 8, paddingVertical: 6 },
   headerActionText: { fontSize: 17, fontWeight: '700' },

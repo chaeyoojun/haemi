@@ -133,7 +133,7 @@ export function toModelFormData(values: ModelFormValues, file: PickedFile | null
 }
 
 const styles = StyleSheet.create({
-  form: { gap: 16 },
+  form: { gap: 16, width: '100%' },
   pickButton: {
     borderWidth: 1.5,
     borderRadius: 12,

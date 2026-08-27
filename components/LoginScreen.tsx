@@ -15,7 +15,7 @@ import { Field, Input } from '@/components/Form';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { useAuth } from '@/lib/auth';
-import { FORM_MAX_WIDTH, useConstrainedStyle, useWideLayout } from '@/lib/layout';
+import { FORM_MAX_WIDTH, useWideLayout } from '@/lib/layout';
 
 const hero = require('../assets/images/login-hero.png');
 
@@ -24,7 +24,6 @@ export function LoginScreen() {
   const { enterAsUser, loginAdmin } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
   const wide = useWideLayout();
-  const formWidth = useConstrainedStyle(FORM_MAX_WIDTH);
   const heroSize = Math.min(wide ? 280 : windowWidth - 56, 360);
   const [adminForm, setAdminForm] = useState(false);
   const [password, setPassword] = useState('');
@@ -43,7 +42,10 @@ export function LoginScreen() {
     <KeyboardAvoidingView
       style={[styles.screen, { backgroundColor: palette.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.content, formWidth]} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={[styles.content, Platform.OS === 'web' && styles.webScroll]}
+        keyboardShouldPersistTaps="handled">
+        <View style={[styles.column, Platform.OS === 'web' && styles.webColumn]}>
         <Image
           source={hero}
           style={{ width: heroSize, height: heroSize, alignSelf: 'center', marginBottom: 8 }}
@@ -91,6 +93,7 @@ export function LoginScreen() {
             </Pressable>
           </View>
         )}
+        </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -105,6 +108,9 @@ const styles = StyleSheet.create({
     paddingVertical: 24,
     gap: 8,
   },
+  webScroll: { alignItems: 'center' },
+  column: { width: '100%', gap: 8 },
+  webColumn: { maxWidth: FORM_MAX_WIDTH },
   form: { gap: 12, marginTop: 8 },
   primaryButton: {
     borderRadius: 14,

@@ -1,14 +1,14 @@
 import { useNavigation, useRouter } from 'expo-router';
 import { useCallback, useLayoutEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
 import { Field, Input } from '@/components/Form';
+import { FormScroll } from '@/components/FormScroll';
 import { PlaceSearch } from '@/components/PlaceSearch';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { detailHref } from '@/lib/nav';
-import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Spot } from '@/lib/types';
 
 export default function NewSpotScreen() {
@@ -20,7 +20,6 @@ export default function NewSpotScreen() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   const onSubmit = useCallback(async () => {
     setSaving(true);
@@ -51,23 +50,20 @@ export default function NewSpotScreen() {
   }, [navigation, onSubmit, palette.tint, saving]);
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
-        <Field label="스팟 이름">
-          <Input value={title} onChangeText={setTitle} placeholder="스팟 명칭" />
-        </Field>
-        <PlaceSearch value={place} onChange={setPlace} />
-        <Field label="메모">
-          <Input value={description} onChangeText={setDescription} placeholder="" multiline minHeight={68} />
-        </Field>
-        {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
-      </ScrollView>
-    </KeyboardAvoidingView>
+    <FormScroll>
+      <Field label="스팟 이름">
+        <Input value={title} onChangeText={setTitle} placeholder="스팟 명칭" />
+      </Field>
+      <PlaceSearch value={place} onChange={setPlace} />
+      <Field label="메모">
+        <Input value={description} onChangeText={setDescription} placeholder="" multiline minHeight={68} />
+      </Field>
+      {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
+    </FormScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, gap: 16, paddingBottom: 40 },
   headerAction: { paddingHorizontal: 8, paddingVertical: 6 },
   headerActionText: { fontSize: 17, fontWeight: '700' },
 });

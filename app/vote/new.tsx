@@ -1,13 +1,13 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
 
+import { FormScroll } from '@/components/FormScroll';
 import { cleanVoteOptions, VoteFormFields } from '@/components/VoteForm';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { detailHref } from '@/lib/nav';
-import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Vote } from '@/lib/types';
 
 function plusDays(days: number) {
@@ -27,7 +27,6 @@ export default function NewVoteScreen() {
   const [endsAt, setEndsAt] = useState(() => plusDays(7));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   const onSubmit = async () => {
     const labels = cleanVoteOptions(options);
@@ -62,33 +61,30 @@ export default function NewVoteScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
-        <VoteFormFields
-          title={title}
-          body={body}
-          options={options}
-          allowMultiple={allowMultiple}
-          startsAt={startsAt}
-          endsAt={endsAt}
-          onTitle={setTitle}
-          onBody={setBody}
-          onOptions={setOptions}
-          onAllowMultiple={setAllowMultiple}
-          onStartsAt={setStartsAt}
-          onEndsAt={setEndsAt}
-        />
-        {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
-        <Pressable onPress={onSubmit} disabled={saving} style={[styles.submit, { backgroundColor: palette.tint, opacity: saving ? 0.7 : 1 }]}>
-          <Text style={styles.submitText}>{saving ? '저장 중...' : '투표 만들기'}</Text>
-        </Pressable>
-      </ScrollView>
-    </KeyboardAvoidingView>
+    <FormScroll>
+      <VoteFormFields
+        title={title}
+        body={body}
+        options={options}
+        allowMultiple={allowMultiple}
+        startsAt={startsAt}
+        endsAt={endsAt}
+        onTitle={setTitle}
+        onBody={setBody}
+        onOptions={setOptions}
+        onAllowMultiple={setAllowMultiple}
+        onStartsAt={setStartsAt}
+        onEndsAt={setEndsAt}
+      />
+      {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
+      <Pressable onPress={onSubmit} disabled={saving} style={[styles.submit, { backgroundColor: palette.tint, opacity: saving ? 0.7 : 1 }]}>
+        <Text style={styles.submitText}>{saving ? '저장 중...' : '투표 만들기'}</Text>
+      </Pressable>
+    </FormScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, gap: 16, paddingBottom: 40 },
   submit: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

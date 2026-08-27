@@ -158,5 +158,5 @@ const styles = StyleSheet.create({
   item: { paddingHorizontal: 14, paddingVertical: 12, gap: 2, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#EDEDED' },
   name: { fontSize: 15, fontWeight: '700' },
   address: { fontSize: 13 },
-  map: { marginTop: 10 },
+  map: { marginTop: 10, width: '100%' },
 });

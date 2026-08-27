@@ -1,14 +1,14 @@
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
+import { FormScroll } from '@/components/FormScroll';
 import { ModelForm, toModelFormData, type ModelFormValues, type PickedFile } from '@/components/ModelForm';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { detailHref } from '@/lib/nav';
-import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Model3d } from '@/lib/types';
 
 export default function EditModelScreen() {
@@ -20,7 +20,6 @@ export default function EditModelScreen() {
   const [file, setFile] = useState<PickedFile | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   useEffect(() => {
     if (!id) return;
@@ -64,24 +63,21 @@ export default function EditModelScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
-        <ModelForm
-          values={values}
-          onChange={setValues}
-          pickedName={file?.name || ''}
-          onPicked={setFile}
-          error={error}
-          saving={saving}
-          submitLabel="수정"
-          onSubmit={onSubmit}
-        />
-      </ScrollView>
-    </KeyboardAvoidingView>
+    <FormScroll>
+      <ModelForm
+        values={values}
+        onChange={setValues}
+        pickedName={file?.name || ''}
+        onPicked={setFile}
+        error={error}
+        saving={saving}
+        submitLabel="수정"
+        onSubmit={onSubmit}
+      />
+    </FormScroll>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 40 },
   center: { flex: 1, padding: 20, justifyContent: 'center' },
 });

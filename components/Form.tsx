@@ -62,7 +62,7 @@ export function Input({
 }
 
 const styles = StyleSheet.create({
-  field: { gap: 8 },
+  field: { gap: 8, width: '100%' },
   label: { fontSize: 13, fontWeight: '700' },
   input: {
     borderWidth: 1,
@@ -70,6 +70,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 16,
+    width: '100%',
   },
   multiline: { minHeight: 120, textAlignVertical: 'top' },
 });

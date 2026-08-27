@@ -84,6 +84,14 @@ export type Vote = {
   options: VoteOption[];
 };
 
+export type Model3dFile = {
+  id: string;
+  fileName: string;
+  format: string;
+  url: string;
+  createdAt: string;
+};
+
 export type Model3d = {
   id: string;
   title: string;
@@ -93,6 +101,7 @@ export type Model3d = {
   description: string;
   createdAt: string;
   updatedAt: string;
+  files?: Model3dFile[];
 };
 
 export const repairStatusLabel: Record<RepairStatus, string> = {

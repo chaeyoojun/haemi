@@ -37,6 +37,14 @@ export function removeUploadsFor(id: string) {
   }
 }
 
+export function copyUpload(srcPath: string, id: string, fileName: string) {
+  const dest = storedPath(id, fileName);
+  if (srcPath !== dest) {
+    fs.copyFileSync(srcPath, dest);
+  }
+  return dest;
+}
+
 export function formatFromName(fileName: string) {
   return path.extname(fileName).replace('.', '').toUpperCase();
 }

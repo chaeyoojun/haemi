@@ -54,7 +54,7 @@ export default function EditModelScreen() {
     setSaving(true);
     setError('');
     try {
-      const model = await api.upload<Model3d>(`/api/models/${id}`, toModelFormData(values, file), 'PATCH');
+      const model = await api.upload<Model3d>(`/api/models/${id}`, toModelFormData(values, file ? [file] : []), 'PATCH');
       router.replace(detailHref('/model', model.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '저장하지 못했습니다.');

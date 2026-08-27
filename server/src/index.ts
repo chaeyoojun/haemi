@@ -5,7 +5,7 @@ import path from 'node:path';
 
 import { airspaceConfigured, lookupAirspace, proxyWms } from './airspace.js';
 import { prisma } from './db.js';
-import { formatFromName, keepUpload, removeUploadsFor, storedPath, upload } from './uploads.js';
+import { formatFromName, keepUpload, removeUploadsFor, storedPath, copyUpload, upload } from './uploads.js';
 
 const app = express();
 const port = Number(process.env.PORT || 4400);
@@ -976,95 +976,293 @@ app.delete(
   })
 );
 
+const modelFileInclude = { files: { orderBy: { createdAt: 'desc' as const } } };
+
+type ModelRow = {
+  id: string;
+  title: string;
+  format: string;
+  fileName: string;
+  url: string;
+  description: string;
+  createdAt: Date;
+  updatedAt: Date;
+  files: Array<{ id: string; fileName: string; format: string; createdAt: Date }>;
+};
+
+function modelPayload(model: ModelRow) {
+  return {
+    ...model,
+    files: model.files.map((file) => ({
+      id: file.id,
+      fileName: file.fileName,
+      format: file.format,
+      url: `/api/models/${model.id}/files/${file.id}`,
+      createdAt: file.createdAt,
+    })),
+  };
+}
+
+function requestFiles(req: Request) {
+  if (Array.isArray(req.files)) {
+    return req.files as Express.Multer.File[];
+  }
+  const grouped = req.files as Record<string, Express.Multer.File[]> | undefined;
+  const listed = [...(grouped?.files || []), ...(grouped?.file || [])];
+  if (listed.length > 0) {
+    return listed;
+  }
+  return req.file ? [req.file] : [];
+}
+
+async function syncModelFileMeta(modelId: string) {
+  const latest = await prisma.model3dFile.findFirst({
+    where: { modelId },
+    orderBy: { createdAt: 'desc' },
+  });
+  await prisma.model3d.update({
+    where: { id: modelId },
+    data: {
+      fileName: latest?.fileName || '',
+      format: latest?.format || '',
+      url: latest ? `/api/models/${modelId}/file` : '',
+    },
+  });
+}
+
+async function saveModelFiles(modelId: string, files: Express.Multer.File[]) {
+  for (const file of files) {
+    const originalName = file.originalname || 'file';
+    const row = await prisma.model3dFile.create({
+      data: {
+        modelId,
+        fileName: originalName,
+        format: formatFromName(originalName),
+      },
+    });
+    keepUpload(file.path, row.id, originalName);
+  }
+  if (files.length > 0) {
+    await syncModelFileMeta(modelId);
+  }
+}
+
+async function hydrateLegacyModelFile(model: ModelRow): Promise<ModelRow> {
+  if (model.files.length > 0 || (!model.fileName && !model.url)) {
+    return model;
+  }
+  const row = await prisma.model3dFile.create({
+    data: {
+      modelId: model.id,
+      fileName: model.fileName,
+      format: model.format || formatFromName(model.fileName),
+      createdAt: model.createdAt,
+    },
+  });
+  const oldPath = storedPath(model.id, model.fileName || 'file');
+  if (fs.existsSync(oldPath)) {
+    copyUpload(oldPath, row.id, row.fileName || 'file');
+  }
+  return { ...model, files: [row] };
+}
+
+function sendModelDiskFile(res: Response, id: string, fileName: string) {
+  const filePath = storedPath(id, fileName || 'file');
+  if (!fs.existsSync(filePath)) {
+    throw new HttpError(404, '저장된 파일을 찾을 수 없습니다.');
+  }
+  res.download(filePath, fileName || 'model.stl');
+}
+
 app.get(
   '/api/models',
   asyncHandler(async (_req, res) => {
-    const models = await prisma.model3d.findMany({ orderBy: { createdAt: 'desc' } });
-    res.json(models);
+    const models = await prisma.model3d.findMany({
+      orderBy: { updatedAt: 'desc' },
+      include: modelFileInclude,
+    });
+    const hydrated = [];
+    for (const model of models) {
+      hydrated.push(modelPayload(await hydrateLegacyModelFile(model)));
+    }
+    res.json(hydrated);
   })
 );
 
 app.post(
   '/api/models',
-  upload.single('file'),
+  upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'files', maxCount: 30 },
+  ]),
   asyncHandler(async (req, res) => {
     const body = req.body ?? {};
-    const uploaded = req.file;
-    const originalName = uploaded?.originalname || text(body.fileName, '파일 이름', false);
+    const uploaded = requestFiles(req);
+    const firstName = uploaded[0]?.originalname || text(body.fileName, '파일 이름', false);
     const model = await prisma.model3d.create({
       data: {
         title: text(body.title, '이름'),
-        format: text(body.format, '형식', false) || (originalName ? formatFromName(originalName) : ''),
-        fileName: originalName,
+        format: text(body.format, '형식', false) || (firstName ? formatFromName(firstName) : ''),
+        fileName: firstName,
         url: text(body.url, '파일 주소', false),
         description: text(body.description, '설명', false),
       },
     });
-    if (uploaded) {
-      keepUpload(uploaded.path, model.id, originalName);
-      const saved = await prisma.model3d.update({
+    try {
+      await saveModelFiles(model.id, uploaded);
+    } catch (error) {
+      const rows = await prisma.model3dFile.findMany({ where: { modelId: model.id } });
+      for (const row of rows) {
+        removeUploadsFor(row.id);
+      }
+      await prisma.model3d.delete({ where: { id: model.id } });
+      throw error;
+    }
+    if (uploaded.length === 0 && model.url) {
+      const saved = await prisma.model3d.findUniqueOrThrow({
         where: { id: model.id },
-        data: { url: `/api/models/${model.id}/file`, fileName: originalName },
+        include: modelFileInclude,
       });
-      res.status(201).json(saved);
+      res.status(201).json(modelPayload(saved));
       return;
     }
-    res.status(201).json(model);
+    if (uploaded.length > 0) {
+      await prisma.model3d.update({
+        where: { id: model.id },
+        data: { url: `/api/models/${model.id}/file` },
+      });
+    }
+    const saved = await prisma.model3d.findUniqueOrThrow({
+      where: { id: model.id },
+      include: modelFileInclude,
+    });
+    res.status(201).json(modelPayload(saved));
   })
 );
 
 app.get(
   '/api/models/:id/file',
   asyncHandler(async (req, res) => {
+    const model = await prisma.model3d.findUnique({
+      where: { id: idParam(req) },
+      include: modelFileInclude,
+    });
+    if (!model) {
+      throw new HttpError(404, '3D 파일을 찾을 수 없습니다.');
+    }
+    const latest = (await hydrateLegacyModelFile(model)).files[0];
+    if (latest) {
+      sendModelDiskFile(res, latest.id, latest.fileName);
+      return;
+    }
+    sendModelDiskFile(res, model.id, model.fileName);
+  })
+);
+
+app.get(
+  '/api/models/:id/files/:fileId',
+  asyncHandler(async (req, res) => {
+    const file = await prisma.model3dFile.findFirst({
+      where: { id: String(req.params.fileId), modelId: idParam(req) },
+    });
+    if (!file) {
+      throw new HttpError(404, '저장된 파일을 찾을 수 없습니다.');
+    }
+    const primary = storedPath(file.id, file.fileName || 'file');
+    if (fs.existsSync(primary)) {
+      res.download(primary, file.fileName || 'model.stl');
+      return;
+    }
+    sendModelDiskFile(res, idParam(req), file.fileName);
+  })
+);
+
+app.post(
+  '/api/models/:id/files',
+  upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'files', maxCount: 30 },
+  ]),
+  asyncHandler(async (req, res) => {
     const model = await prisma.model3d.findUnique({ where: { id: idParam(req) } });
     if (!model) {
       throw new HttpError(404, '3D 파일을 찾을 수 없습니다.');
     }
-    const filePath = storedPath(model.id, model.fileName || 'file');
-    if (!fs.existsSync(filePath)) {
+    const uploaded = requestFiles(req);
+    if (uploaded.length === 0) {
+      throw new HttpError(400, '파일을 선택해 주세요.');
+    }
+    await saveModelFiles(model.id, uploaded);
+    const saved = await prisma.model3d.findUniqueOrThrow({
+      where: { id: model.id },
+      include: modelFileInclude,
+    });
+    res.status(201).json(modelPayload(saved));
+  })
+);
+
+app.delete(
+  '/api/models/:id/files/:fileId',
+  adminGuard,
+  asyncHandler(async (req, res) => {
+    const file = await prisma.model3dFile.findFirst({
+      where: { id: String(req.params.fileId), modelId: idParam(req) },
+    });
+    if (!file) {
       throw new HttpError(404, '저장된 파일을 찾을 수 없습니다.');
     }
-    res.download(filePath, model.fileName || 'model.stl');
+    removeUploadsFor(file.id);
+    await prisma.model3dFile.delete({ where: { id: file.id } });
+    await syncModelFileMeta(idParam(req));
+    res.status(204).end();
   })
 );
 
 app.get(
   '/api/models/:id',
   asyncHandler(async (req, res) => {
-    const model = await prisma.model3d.findUnique({ where: { id: idParam(req) } });
+    const model = await prisma.model3d.findUnique({
+      where: { id: idParam(req) },
+      include: modelFileInclude,
+    });
     if (!model) {
       throw new HttpError(404, '3D 파일을 찾을 수 없습니다.');
     }
-    res.json(model);
+    res.json(modelPayload(await hydrateLegacyModelFile(model)));
   })
 );
 
 app.patch(
   '/api/models/:id',
   adminGuard,
-  upload.single('file'),
+  upload.fields([
+    { name: 'file', maxCount: 1 },
+    { name: 'files', maxCount: 30 },
+  ]),
   asyncHandler(async (req, res) => {
-    const uploaded = req.file;
-    const originalName = uploaded?.originalname || undefined;
-    if (uploaded) {
-      removeUploadsFor(idParam(req));
-      keepUpload(uploaded.path, idParam(req), originalName || 'file');
+    const uploaded = requestFiles(req);
+    if (uploaded.length > 0) {
+      await saveModelFiles(idParam(req), uploaded);
     }
     const body = req.body ?? {};
-    const model = await prisma.model3d.update({
+    await prisma.model3d.update({
       where: { id: idParam(req) },
       data: {
         ...(body.title != null ? { title: text(body.title, '이름') } : {}),
         ...(body.format != null ? { format: text(body.format, '형식', false) } : {}),
-        ...(body.fileName != null || originalName
-          ? { fileName: originalName || text(body.fileName, '파일 이름', false) }
-          : {}),
-        ...(body.url != null && !uploaded ? { url: text(body.url, '파일 주소', false) } : {}),
-        ...(uploaded ? { url: `/api/models/${idParam(req)}/file` } : {}),
+        ...(body.fileName != null ? { fileName: text(body.fileName, '파일 이름', false) } : {}),
+        ...(body.url != null && uploaded.length === 0 ? { url: text(body.url, '파일 주소', false) } : {}),
         ...(body.description != null ? { description: text(body.description, '설명', false) } : {}),
       },
     });
-    res.json(model);
+    if (uploaded.length > 0) {
+      await syncModelFileMeta(idParam(req));
+    }
+    const saved = await prisma.model3d.findUniqueOrThrow({
+      where: { id: idParam(req) },
+      include: modelFileInclude,
+    });
+    res.json(modelPayload(saved));
   })
 );
 
@@ -1073,6 +1271,10 @@ app.delete(
   adminGuard,
   asyncHandler(async (req, res) => {
     const id = idParam(req);
+    const files = await prisma.model3dFile.findMany({ where: { modelId: id } });
+    for (const file of files) {
+      removeUploadsFor(file.id);
+    }
     removeUploadsFor(id);
     await prisma.model3d.delete({ where: { id } });
     res.status(204).end();

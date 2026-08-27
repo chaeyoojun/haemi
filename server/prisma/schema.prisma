@@ -69,14 +69,26 @@ model VoteOption {
 }
 
 model Model3d {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   title       String
-  format      String   @default("")
-  fileName    String   @default("")
-  url         String   @default("")
-  description String   @default("")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  format      String        @default("")
+  fileName    String        @default("")
+  url         String        @default("")
+  description String        @default("")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  files       Model3dFile[]
+}
+
+model Model3dFile {
+  id        String   @id @default(cuid())
+  modelId   String
+  fileName  String   @default("")
+  format    String   @default("")
+  createdAt DateTime @default(now())
+  model     Model3d  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([modelId])
 }
 
 model PushToken {

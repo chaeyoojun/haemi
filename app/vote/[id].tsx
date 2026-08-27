@@ -62,9 +62,6 @@ export default function VoteDetailScreen() {
 
   const onToggle = (optionId: string) => {
     if (!vote || votedIds.length > 0) {
-      if (votedIds.length > 0) {
-        Alert.alert('이미 투표했습니다.', '이 기기에서는 한 번만 참여할 수 있습니다.');
-      }
       return;
     }
     const now = Date.now();
@@ -101,6 +98,28 @@ export default function VoteDetailScreen() {
       await AsyncStorage.setItem(voteKey(vote.id), JSON.stringify(pickedIds));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '투표하지 못했습니다.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const onUncast = async () => {
+    if (!vote || votedIds.length === 0) {
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await api.create<Vote>(`/api/votes/${vote.id}/uncast`, {
+        optionId: votedIds[0],
+        optionIds: votedIds,
+      });
+      setVote(updated);
+      setVotedIds([]);
+      setPickedIds([]);
+      await AsyncStorage.removeItem(voteKey(vote.id));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '투표를 취소하지 못했습니다.');
     } finally {
       setSaving(false);
     }
@@ -197,6 +216,30 @@ export default function VoteDetailScreen() {
                 </Text>
               </Pressable>
             ) : null}
+            {hasVoted && !notStarted && !ended ? (
+              <Pressable
+                onPress={() =>
+                  Alert.alert('투표를 취소할까요?', '취소하면 다시 고를 수 있습니다.', [
+                    { text: '닫기', style: 'cancel' },
+                    {
+                      text: '취소하기',
+                      style: 'destructive',
+                      onPress: () => {
+                        void onUncast();
+                      },
+                    },
+                  ])
+                }
+                disabled={saving}
+                style={[
+                  styles.cancel,
+                  { borderColor: palette.danger, opacity: saving ? 0.7 : 1 },
+                ]}>
+                <Text style={[styles.cancelText, { color: palette.danger }]}>
+                  {saving ? '취소 중...' : '투표 취소'}
+                </Text>
+              </Pressable>
+            ) : null}
           </>
         )}
       </RefreshableScroll>
@@ -224,4 +267,6 @@ const styles = StyleSheet.create({
   optionCount: { fontSize: 15, fontWeight: '700' },
   submit: { marginTop: 8, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
+  cancel: { marginTop: 8, borderRadius: 14, paddingVertical: 16, alignItems: 'center', borderWidth: 1 },
+  cancelText: { fontSize: 16, fontWeight: '700' },
 });

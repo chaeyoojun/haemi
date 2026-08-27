@@ -87,6 +87,15 @@ function optionIdsFromBody(body: { optionId?: unknown; optionIds?: unknown }) {
   return [...new Set(raw.map((id) => (typeof id === 'string' ? id.trim() : '')).filter(Boolean))];
 }
 
+function assertVoteOpen(vote: { startsAt: Date; endsAt: Date }) {
+  if (vote.startsAt.getTime() > Date.now()) {
+    throw new HttpError(400, '아직 시작되지 않은 투표입니다.');
+  }
+  if (vote.endsAt.getTime() <= Date.now()) {
+    throw new HttpError(400, '마감된 투표입니다.');
+  }
+}
+
 function dateField(value: unknown, field: string) {
   if (typeof value !== 'string' || !value.trim()) {
     throw new HttpError(400, `${field}을(를) 선택해 주세요.`);
@@ -887,12 +896,7 @@ app.post(
     if (!vote) {
       throw new HttpError(404, '투표를 찾을 수 없습니다.');
     }
-    if (vote.startsAt.getTime() > Date.now()) {
-      throw new HttpError(400, '아직 시작되지 않은 투표입니다.');
-    }
-    if (vote.endsAt.getTime() <= Date.now()) {
-      throw new HttpError(400, '마감된 투표입니다.');
-    }
+    assertVoteOpen(vote);
     const optionIds = optionIdsFromBody(req.body);
     if (optionIds.length === 0) {
       throw new HttpError(400, '선택지를 고르세요.');
@@ -911,6 +915,41 @@ app.post(
         prisma.voteOption.update({
           where: { id: option.id },
           data: { count: { increment: 1 } },
+        })
+      )
+    );
+    const updated = await prisma.vote.findUniqueOrThrow({
+      where: { id: voteId },
+      include: voteInclude,
+    });
+    res.json(updated);
+  })
+);
+
+app.post(
+  '/api/votes/:id/uncast',
+  asyncHandler(async (req, res) => {
+    const voteId = idParam(req);
+    const vote = await prisma.vote.findUnique({ where: { id: voteId } });
+    if (!vote) {
+      throw new HttpError(404, '투표를 찾을 수 없습니다.');
+    }
+    assertVoteOpen(vote);
+    const optionIds = optionIdsFromBody(req.body);
+    if (optionIds.length === 0) {
+      throw new HttpError(400, '취소할 선택지가 없습니다.');
+    }
+    const options = await prisma.voteOption.findMany({
+      where: { id: { in: optionIds }, voteId },
+    });
+    if (options.length !== optionIds.length) {
+      throw new HttpError(404, '선택지를 찾을 수 없습니다.');
+    }
+    await prisma.$transaction(
+      options.map((option) =>
+        prisma.voteOption.updateMany({
+          where: { id: option.id, count: { gt: 0 } },
+          data: { count: { decrement: 1 } },
         })
       )
     );

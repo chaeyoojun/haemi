@@ -67,8 +67,8 @@ export default function EditModelScreen() {
       <ModelForm
         values={values}
         onChange={setValues}
-        pickedName={file?.name || ''}
-        onPicked={setFile}
+        files={file ? [file] : []}
+        onFiles={(next) => setFile(next[0] ?? null)}
         error={error}
         saving={saving}
         submitLabel="수정"

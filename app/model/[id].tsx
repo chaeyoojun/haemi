@@ -47,7 +47,7 @@ export default function ModelDetailScreen() {
           <>
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
               <View style={styles.header}>
-                <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
+                <Text style={[styles.title, { color: palette.text }]}>
                   {model.title}
                 </Text>
                 {isAdmin ? (

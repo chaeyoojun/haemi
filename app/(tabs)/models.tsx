@@ -1,7 +1,6 @@
 import { useRouter } from 'expo-router';
 
 import { ItemCard, ResourceList } from '@/components/ResourceList';
-import { formatDateTime } from '@/lib/format';
 import { detailHref } from '@/lib/nav';
 import type { Model3d } from '@/lib/types';
 import { useApiList } from '@/lib/useApiList';
@@ -19,13 +18,13 @@ export default function ModelsScreen() {
       emptyHint="프레임, 안테나, 고글 마운트 같은 STL·OBJ 파일을 올려 공유하세요."
       createHref="/model/new"
       createLabel="3D 파일 등록"
+      table
       onRetry={reload}>
       {items.map((model) => (
         <ItemCard
           key={model.id}
           title={model.title}
-          meta={[model.format, model.fileName].filter(Boolean).join(' · ') || formatDateTime(model.createdAt)}
-          body={model.description}
+          layout="table"
           onPress={() => router.push(detailHref('/model', model.id))}
         />
       ))}

@@ -18,6 +18,7 @@ type Props = {
   createLabel: string;
   canCreate?: boolean;
   header?: ReactNode;
+  table?: boolean;
   onRetry: () => void | Promise<void>;
   children: ReactNode;
 };
@@ -32,6 +33,7 @@ export function ResourceList({
   createLabel,
   canCreate = true,
   header,
+  table = false,
   onRetry,
   children,
 }: Props) {
@@ -55,7 +57,12 @@ export function ResourceList({
         ) : empty ? (
           <Text style={[styles.emptyText, { color: palette.muted }]}>{emptyTitle}</Text>
         ) : (
-          <View style={wide ? styles.grid : undefined}>{children}</View>
+          <View
+            style={
+              table ? [styles.table, { borderColor: palette.border }] : wide ? styles.grid : undefined
+            }>
+            {children}
+          </View>
         )}
       </RefreshableScroll>
       </View>
@@ -85,10 +92,19 @@ export function ItemCard({
   body?: string;
   onPress: () => void;
   more?: ReactNode;
-  layout?: 'stack' | 'row';
+  layout?: 'stack' | 'row' | 'table';
 }) {
   const palette = Colors[useColorScheme()];
   const wide = useWideLayout();
+  if (layout === 'table') {
+    return (
+      <Pressable onPress={onPress} style={[styles.tableRow, { borderBottomColor: palette.border }]}>
+        <Text style={[styles.tableTitle, { color: palette.text }]} numberOfLines={1}>
+          {title}
+        </Text>
+      </Pressable>
+    );
+  }
   if (layout === 'row') {
     return (
       <Pressable
@@ -146,6 +162,18 @@ const styles = StyleSheet.create({
   rowMeta: { flexShrink: 0, fontSize: 13 },
   body: { fontSize: 15, lineHeight: 22 },
   emptyText: { fontSize: 15, paddingTop: 8 },
+  table: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    width: '100%',
+  },
+  tableRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  tableTitle: { fontSize: 16, fontWeight: '700' },
   primaryButton: {
     marginTop: 8,
     alignSelf: 'flex-start',

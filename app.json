@@ -37,8 +37,12 @@
     },
     "web": {
       "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "HMFPV",
+      "shortName": "HMFPV",
+      "themeColor": "#F07D22",
+      "backgroundColor": "#FFFFFF"
     },
     "plugins": [
       "expo-router",

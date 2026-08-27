@@ -8,6 +8,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { detailHref } from '@/lib/nav';
+import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Repair } from '@/lib/types';
 
 export default function NewRepairScreen() {
@@ -19,6 +20,7 @@ export default function NewRepairScreen() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   const onSubmit = async () => {
     setSaving(true);
@@ -37,7 +39,7 @@ export default function NewRepairScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
         <Field label="제목">
           <Input value={title} onChangeText={setTitle} placeholder="제품명" />
         </Field>

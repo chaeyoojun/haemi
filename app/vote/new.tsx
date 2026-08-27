@@ -7,6 +7,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { detailHref } from '@/lib/nav';
+import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Vote } from '@/lib/types';
 
 function plusDays(days: number) {
@@ -26,6 +27,7 @@ export default function NewVoteScreen() {
   const [endsAt, setEndsAt] = useState(() => plusDays(7));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   const onSubmit = async () => {
     const labels = cleanVoteOptions(options);
@@ -61,7 +63,7 @@ export default function NewVoteScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
         <VoteFormFields
           title={title}
           body={body}

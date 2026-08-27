@@ -6,6 +6,7 @@ import { Icon } from '@/components/Icon';
 import { RefreshableScroll } from '@/components/RefreshableScroll';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
+import { useWideLayout } from '@/lib/layout';
 
 type Props = {
   ready: boolean;
@@ -35,11 +36,13 @@ export function ResourceList({
   children,
 }: Props) {
   const palette = Colors[useColorScheme()];
+  const wide = useWideLayout();
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background }]}>
-      {header}
-      <RefreshableScroll onRefresh={onRetry} contentContainerStyle={styles.content}>
+      <View style={[styles.main, wide ? styles.mainWide : null]}>
+        {header}
+        <RefreshableScroll onRefresh={onRetry} contentContainerStyle={styles.content}>
         {error ? (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Text style={[styles.body, { color: palette.danger }]}>{error}</Text>
@@ -52,9 +55,10 @@ export function ResourceList({
         ) : empty ? (
           <Text style={[styles.emptyText, { color: palette.muted }]}>{emptyTitle}</Text>
         ) : (
-          children
+          <View style={wide ? styles.grid : undefined}>{children}</View>
         )}
       </RefreshableScroll>
+      </View>
       {canCreate ? (
         <Link href={createHref} asChild>
           <Pressable
@@ -84,11 +88,17 @@ export function ItemCard({
   layout?: 'stack' | 'row';
 }) {
   const palette = Colors[useColorScheme()];
+  const wide = useWideLayout();
   if (layout === 'row') {
     return (
       <Pressable
         onPress={onPress}
-        style={[styles.card, styles.rowCard, { backgroundColor: palette.card, borderColor: palette.border }]}>
+        style={[
+          styles.card,
+          styles.rowCard,
+          wide ? styles.cardWide : null,
+          { backgroundColor: palette.card, borderColor: palette.border },
+        ]}>
         <Text style={[styles.title, styles.rowTitle, { color: palette.text }]} numberOfLines={1}>
           {title}
         </Text>
@@ -104,7 +114,11 @@ export function ItemCard({
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+      style={[
+        styles.card,
+        wide ? styles.cardWide : null,
+        { backgroundColor: palette.card, borderColor: palette.border },
+      ]}>
       <Text style={[styles.title, { color: palette.text }]}>{title}</Text>
       {meta ? <Text style={[styles.meta, { color: palette.tint }]}>{meta}</Text> : null}
       {body ? <Text style={[styles.body, { color: palette.muted }]}>{body}</Text> : null}
@@ -114,8 +128,12 @@ export function ItemCard({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  content: { padding: 20, paddingBottom: 96, gap: 12 },
+  main: { flex: 1, width: '100%' },
+  mainWide: { maxWidth: 1080, alignSelf: 'center' },
+  content: { padding: 20, paddingBottom: 96, gap: 12, width: '100%' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 20, paddingVertical: 20, gap: 8 },
+  cardWide: { flexGrow: 1, flexBasis: 360, maxWidth: '100%' },
   rowCard: {
     flexDirection: 'row',
     alignItems: 'center',

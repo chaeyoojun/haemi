@@ -3,6 +3,7 @@ import { RefreshControl, ScrollView, StyleSheet, type ScrollViewProps } from 're
 
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
+import { PAGE_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 
 type Props = ScrollViewProps & {
   onRefresh: () => void | Promise<void>;
@@ -12,12 +13,13 @@ type Props = ScrollViewProps & {
 export function RefreshableScroll({ onRefresh, children, contentContainerStyle, style, ...rest }: Props) {
   const palette = Colors[useColorScheme()];
   const [refreshing, setRefreshing] = useState(false);
+  const constrained = useConstrainedStyle(PAGE_MAX_WIDTH);
 
   return (
     <ScrollView
       {...rest}
       style={[styles.fill, style]}
-      contentContainerStyle={[styles.grow, contentContainerStyle]}
+      contentContainerStyle={[styles.grow, constrained, contentContainerStyle]}
       alwaysBounceVertical
       overScrollMode="always"
       keyboardShouldPersistTaps={rest.keyboardShouldPersistTaps ?? 'handled'}

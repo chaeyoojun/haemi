@@ -8,6 +8,7 @@ import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { detailHref } from '@/lib/nav';
+import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Notice } from '@/lib/types';
 
 export default function EditNoticeScreen() {
@@ -21,6 +22,7 @@ export default function EditNoticeScreen() {
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   useEffect(() => {
     if (!id) return;
@@ -77,7 +79,7 @@ export default function EditNoticeScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
         <Field label="제목">
           <Input value={title} onChangeText={setTitle} placeholder="이번 주 모임 시간 변경" />
         </Field>

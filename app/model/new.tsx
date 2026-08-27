@@ -7,6 +7,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { detailHref } from '@/lib/nav';
+import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Model3d } from '@/lib/types';
 
 const empty: ModelFormValues = {
@@ -24,6 +25,7 @@ export default function NewModelScreen() {
   const [file, setFile] = useState<PickedFile | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   const onSubmit = async () => {
     setSaving(true);
@@ -39,7 +41,7 @@ export default function NewModelScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
         <ModelForm
           values={values}
           onChange={setValues}

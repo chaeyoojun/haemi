@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
+import { useWideLayout } from '@/lib/layout';
 import type { AndroidSymbol, SFSymbol } from 'expo-symbols';
 
 const tabs: {
@@ -63,9 +64,24 @@ export function AppTabBar() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const palette = Colors[useColorScheme()];
+  const wide = useWideLayout();
 
   return (
-    <View style={[styles.bar, { backgroundColor: palette.card, borderTopColor: palette.border, paddingBottom: Math.max(insets.bottom, 8) }]}>
+    <View
+      style={[
+        wide ? styles.barWide : styles.bar,
+        {
+          backgroundColor: palette.card,
+          borderColor: palette.border,
+          paddingBottom: wide ? 0 : Math.max(insets.bottom, 8),
+          paddingTop: wide ? Math.max(insets.top, 0) : 8,
+        },
+      ]}>
+      {wide ? (
+        <Text style={[styles.brand, { color: palette.tint }]} accessibilityRole="header">
+          HMFPV
+        </Text>
+      ) : null}
       {tabs.map((tab) => {
         const active = tab.match(pathname);
         const color = active ? palette.tint : palette.tabIconDefault;
@@ -77,12 +93,15 @@ export function AppTabBar() {
                 router.navigate(tab.href);
               }
             }}
-            style={styles.item}
+            style={[
+              wide ? styles.itemWide : styles.item,
+              wide && active ? { backgroundColor: '#FEF6EE' } : null,
+            ]}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             accessibilityLabel={tab.title}>
-            <Icon ios={tab.ios} android={tab.android} color={color} size={24} />
-            <Text style={[styles.label, { color }]}>{tab.title}</Text>
+            <Icon ios={tab.ios} android={tab.android} color={color} size={wide ? 20 : 24} />
+            <Text style={[wide ? styles.labelWide : styles.label, { color }]}>{tab.title}</Text>
           </Pressable>
         );
       })}
@@ -96,14 +115,40 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 8,
   },
+  barWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingHorizontal: 28,
+    minHeight: 64,
+    gap: 4,
+  },
+  brand: {
+    fontSize: 20,
+    fontWeight: '800',
+    marginRight: 20,
+  },
   item: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
   },
+  itemWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+    cursor: 'pointer',
+  },
   label: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  labelWide: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

@@ -8,6 +8,7 @@ import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { detailHref } from '@/lib/nav';
+import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Vote } from '@/lib/types';
 
 export default function EditVoteScreen() {
@@ -25,6 +26,7 @@ export default function EditVoteScreen() {
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   useEffect(() => {
     if (!id) return;
@@ -103,7 +105,7 @@ export default function EditVoteScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
         <VoteFormFields
           title={title}
           body={body}

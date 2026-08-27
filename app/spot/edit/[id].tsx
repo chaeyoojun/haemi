@@ -10,6 +10,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { stripMapShareUrls } from '@/lib/maps';
 import { detailHref } from '@/lib/nav';
+import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Spot } from '@/lib/types';
 
 export default function EditSpotScreen() {
@@ -24,6 +25,7 @@ export default function EditSpotScreen() {
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   useEffect(() => {
     if (!id) return;
@@ -81,7 +83,7 @@ export default function EditSpotScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
         <Field label="스팟 이름">
           <Input value={title} onChangeText={setTitle} placeholder="스팟 명칭" />
         </Field>

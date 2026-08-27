@@ -2,7 +2,7 @@ import { DefaultTheme, Stack, ThemeProvider, useRouter, type Href } from 'expo-r
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
 import { AppTabBar } from '@/components/AppTabBar';
@@ -10,6 +10,7 @@ import { AppUpdateGate } from '@/components/AppUpdateGate';
 import { BrandSplash } from '@/components/BrandSplash';
 import { LoginScreen } from '@/components/LoginScreen';
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { useWideLayout } from '@/lib/layout';
 
 export { ErrorBoundary } from 'expo-router';
 
@@ -33,10 +34,13 @@ const HaemiTheme = {
 };
 
 export default function RootLayout() {
-  const [introDone, setIntroDone] = useState(false);
+  const [introDone, setIntroDone] = useState(Platform.OS === 'web');
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => undefined);
+    if (Platform.OS === 'web') {
+      return;
+    }
     const timer = setTimeout(() => setIntroDone(true), 4500);
     return () => clearTimeout(timer);
   }, []);
@@ -57,6 +61,9 @@ function SignedInApp() {
   const { role } = useAuth();
 
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      return;
+    }
     const timer = setTimeout(() => {
       import('@/lib/notifications')
         .then((mod) => mod.promptAndRegisterNotifications())
@@ -66,7 +73,7 @@ function SignedInApp() {
   }, []);
 
   useEffect(() => {
-    if (!role) {
+    if (!role || Platform.OS === 'web') {
       return;
     }
     import('@/lib/notifications')
@@ -77,6 +84,9 @@ function SignedInApp() {
   if (!role) {
     return <LoginScreen />;
   }
+  if (Platform.OS === 'web') {
+    return <RootLayoutNav />;
+  }
   return (
     <AppUpdateGate>
       <RootLayoutNav />
@@ -86,8 +96,12 @@ function SignedInApp() {
 
 function RootLayoutNav() {
   const router = useRouter();
+  const wide = useWideLayout();
 
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      return;
+    }
     let unsub = () => {};
     import('@/lib/notifications')
       .then((mod) => {
@@ -101,6 +115,7 @@ function RootLayoutNav() {
 
   return (
     <View style={styles.shell}>
+      {wide ? <AppTabBar /> : null}
       <View style={styles.stack}>
         <Stack
           screenOptions={{
@@ -128,7 +143,7 @@ function RootLayoutNav() {
           <Stack.Screen name="model/edit/[id]" options={{ title: '3D 파일 수정', presentation: 'modal' }} />
         </Stack>
       </View>
-      <AppTabBar />
+      {wide ? null : <AppTabBar />}
     </View>
   );
 }
@@ -144,5 +159,6 @@ const styles = StyleSheet.create({
   },
   stack: {
     flex: 1,
+    minHeight: 0,
   },
 });

@@ -8,6 +8,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { detailHref } from '@/lib/nav';
+import { FORM_MAX_WIDTH, useConstrainedStyle } from '@/lib/layout';
 import type { Spot } from '@/lib/types';
 
 export default function NewSpotScreen() {
@@ -19,6 +20,7 @@ export default function NewSpotScreen() {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const formStyle = useConstrainedStyle(FORM_MAX_WIDTH);
 
   const onSubmit = useCallback(async () => {
     setSaving(true);
@@ -50,7 +52,7 @@ export default function NewSpotScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.content, formStyle]} keyboardShouldPersistTaps="handled">
         <Field label="스팟 이름">
           <Input value={title} onChangeText={setTitle} placeholder="스팟 명칭" />
         </Field>

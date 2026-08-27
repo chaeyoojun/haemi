@@ -240,9 +240,11 @@ async function searchKakaoPlaces(query: string): Promise<PlaceHit[]> {
 
 const REGION_TOKEN =
   /^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청|전라|경상)/;
+const ROAD_NUMBER = /([가-힣0-9]+(?:대로|번길|로|길|가))(\d+(?:-\d+)*)/g;
 
 function geocodeQueries(query: string) {
-  const trimmed = query.trim();
+  const trimmed = query.trim().replace(/\s+/g, ' ');
+  const spaced = trimmed.replace(ROAD_NUMBER, '$1 $2');
   const queries: string[] = [];
   const add = (value: string) => {
     const next = value.trim();
@@ -251,8 +253,9 @@ function geocodeQueries(query: string) {
     }
   };
   add(trimmed);
-  add(trimmed.replace(/\s+\d+(-\d+)*$/, ''));
-  for (const part of trimmed.split(/[,\s]+/)) {
+  add(spaced);
+  add(spaced.replace(/\s+\d+(-\d+)*$/, ''));
+  for (const part of spaced.split(/[,\s]+/)) {
     if (
       part.length >= 2 &&
       !REGION_TOKEN.test(part) &&
@@ -298,15 +301,18 @@ async function searchNominatimPlaces(query: string): Promise<PlaceHit[]> {
 }
 
 async function searchPlaces(query: string): Promise<PlaceHit[]> {
-  try {
-    const kakao = await searchKakaoPlaces(query);
-    if (kakao.length > 0) {
-      return kakao;
+  const queries = geocodeQueries(query);
+  for (const next of queries) {
+    try {
+      const kakao = await searchKakaoPlaces(next);
+      if (kakao.length > 0) {
+        return kakao;
+      }
+    } catch {
+      // Fall through to OpenStreetMap when Kakao is unset or failing.
     }
-  } catch {
-    // Fall through to OpenStreetMap when Kakao is unset or failing.
   }
-  for (const next of geocodeQueries(query)) {
+  for (const next of queries) {
     const found = await searchNominatimPlaces(next);
     if (found.length > 0) {
       return found;

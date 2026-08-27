@@ -38,22 +38,33 @@ export function sameCoords(a: MapCoords | null | undefined, b: MapCoords | null 
   return Math.abs(a.lat - b.lat) < 0.00008 && Math.abs(a.lng - b.lng) < 0.00008;
 }
 
-export function parsePinMessage(raw: string): MapCoords | null {
+export type MapMessage =
+  | { type: 'pin'; lat: number; lng: number }
+  | { type: 'airspace-query'; lat: number; lng: number };
+
+export function parseMapMessage(raw: string): MapMessage | null {
   try {
     const data = JSON.parse(raw) as { type?: string; lat?: number; lng?: number };
-    if (data?.type !== 'pin') {
+    const coords = coordsFromPlace(data);
+    if (!coords || (data?.type !== 'pin' && data?.type !== 'airspace-query')) {
       return null;
     }
-    return coordsFromPlace(data);
+    return { type: data.type, ...coords };
   } catch {
     return null;
   }
 }
 
-export function moveMarkerScript(coords: MapCoords) {
+export function parsePinMessage(raw: string): MapCoords | null {
+  const message = parseMapMessage(raw);
+  return message?.type === 'pin' ? { lat: message.lat, lng: message.lng } : null;
+}
+
+export function moveMarkerScript(coords: MapCoords, zoom?: number) {
   const lat = Number(coords.lat);
   const lng = Number(coords.lng);
-  return `if (window.marker && window.map) { window.marker.setLatLng([${lat}, ${lng}]); window.map.setView([${lat}, ${lng}]); } true;`;
+  const view = Number.isFinite(zoom) ? `[${lat}, ${lng}], ${Number(zoom)}` : `[${lat}, ${lng}]`;
+  return `if (window.marker && window.map) { window.marker.setLatLng([${lat}, ${lng}]); window.map.setView(${view}); } if (window.queryAirspace) { window.queryAirspace(${lat}, ${lng}, false); } true;`;
 }
 
 export async function geocodeNominatim(place: string): Promise<MapCoords | null> {
@@ -119,10 +130,16 @@ export async function reverseNominatim(coords: MapCoords): Promise<string> {
   return json.display_name || '';
 }
 
-export function mapWindowHtml(coords: MapCoords, options?: { movable?: boolean }) {
+export function mapWindowHtml(
+  coords: MapCoords,
+  options?: { movable?: boolean; airspace?: boolean; apiUrl?: string; zoom?: number }
+) {
   const lat = Number(coords.lat);
   const lng = Number(coords.lng);
   const movable = options?.movable ? 'true' : 'false';
+  const airspace = options?.airspace ? 'true' : 'false';
+  const zoom = Number.isFinite(options?.zoom) ? Number(options?.zoom) : 17;
+  const apiUrl = JSON.stringify(options?.apiUrl || '');
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -132,13 +149,26 @@ export function mapWindowHtml(coords: MapCoords, options?: { movable?: boolean }
   <style>
     html, body, #map { height:100%; width:100%; margin:0; padding:0; background:#eee; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
     .leaflet-control-attribution { font-size:9px !important; }
+    #chips { position:absolute; top:10px; left:54px; right:10px; z-index:500; display:flex; flex-wrap:wrap; justify-content:flex-end; gap:6px; pointer-events:none; }
+    #chips button { pointer-events:auto; border:0; border-radius:999px; padding:6px 10px; font-size:12px; font-weight:700; color:#fff; opacity:0.45; }
+    #chips button.on { opacity:1; }
+    #chips .prh { background:#C01048; }
+    #chips .res { background:#DC6803; }
+    #chips .ctr { background:#175CD3; }
+    #chips .ua { background:#027A48; }
   </style>
 </head>
 <body>
   <div id="map"></div>
+  <div id="chips" hidden>
+    <button class="prh on" data-layer="prh">금지</button>
+    <button class="res on" data-layer="res">제한</button>
+    <button class="ctr on" data-layer="ctr">관제</button>
+    <button class="ua on" data-layer="ua">UA</button>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    var map = L.map('map', { zoomControl: true }).setView([${lat}, ${lng}], 17);
+    var map = L.map('map', { zoomControl: true }).setView([${lat}, ${lng}], ${zoom});
     window.map = map;
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
@@ -146,6 +176,50 @@ export function mapWindowHtml(coords: MapCoords, options?: { movable?: boolean }
     }).addTo(map);
     var marker = L.marker([${lat}, ${lng}]).addTo(map);
     window.marker = marker;
+    var API = ${apiUrl};
+    var lastQuery = 0;
+    function wms(layers) {
+      return L.tileLayer.wms(API + '/api/airspace/wms', {
+        layers: layers,
+        styles: layers,
+        format: 'image/png',
+        transparent: true,
+        version: '1.3.0',
+        opacity: 0.72,
+        attribution: '국토교통부 브이월드'
+      });
+    }
+    var overlays = {
+      prh: wms('lt_c_aisprhc'),
+      res: wms('lt_c_aisresc'),
+      ctr: wms('lt_c_aisctrc,lt_c_aisatzc'),
+      ua: wms('lt_c_aisuac,lt_c_aisdronezone')
+    };
+    if (${airspace} && API) {
+      document.getElementById('chips').hidden = false;
+      Object.keys(overlays).forEach(function(key) { overlays[key].addTo(map); });
+      document.getElementById('chips').addEventListener('click', function(event) {
+        var btn = event.target.closest('button');
+        if (!btn) return;
+        var key = btn.getAttribute('data-layer');
+        if (map.hasLayer(overlays[key])) { map.removeLayer(overlays[key]); btn.classList.remove('on'); }
+        else { overlays[key].addTo(map); btn.classList.add('on'); }
+      });
+    }
+    window.queryAirspace = function(lat, lng, move) {
+      var now = Date.now();
+      if (now - lastQuery < 250) return;
+      lastQuery = now;
+      if (move !== false) marker.setLatLng([lat, lng]);
+      if (window.map && window.map.closePopup) window.map.closePopup();
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'airspace-query', lat: lat, lng: lng }));
+      }
+    };
+    if (${airspace}) {
+      map.on('click', function(e) { window.queryAirspace(e.latlng.lat, e.latlng.lng); });
+      setTimeout(function() { window.queryAirspace(${lat}, ${lng}, false); }, 400);
+    }
     setTimeout(function() { map.invalidateSize(); }, 250);
     if (${movable}) {
       var lastDrop = 0;
@@ -157,6 +231,7 @@ export function mapWindowHtml(coords: MapCoords, options?: { movable?: boolean }
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pin', lat: latlng.lat, lng: latlng.lng }));
         }
+        if (window.queryAirspace) window.queryAirspace(latlng.lat, latlng.lng, false);
       }
       map.on('contextmenu', function(e) {
         L.DomEvent.preventDefault(e);

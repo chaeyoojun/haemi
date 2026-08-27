@@ -7,6 +7,37 @@ export type Spot = {
   updatedAt: string;
 };
 
+export type AirspaceKind =
+  | 'prohibited'
+  | 'restricted'
+  | 'ctr'
+  | 'atz'
+  | 'danger'
+  | 'ua'
+  | 'dronezone';
+
+export type AirspaceLevel = 'no-fly' | 'permit' | 'ua' | 'clear';
+
+export type AirspaceZone = {
+  kind: AirspaceKind;
+  title: string;
+  ident: string;
+  name: string;
+  lower: string;
+  upper: string;
+  altitude: string;
+};
+
+export type AirspaceLookup = {
+  lat: number;
+  lng: number;
+  level: AirspaceLevel;
+  title: string;
+  summary: string;
+  zones: AirspaceZone[];
+  source: string;
+};
+
 export type RepairStatus = 'pending' | 'doing' | 'done';
 
 export type RepairPhoto = {

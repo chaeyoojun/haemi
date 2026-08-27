@@ -2,6 +2,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, LayoutAnimation, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { AirspaceCard } from '@/components/AirspaceCard';
 import { Icon } from '@/components/Icon';
 import { InlineMoreActions } from '@/components/InlineMoreActions';
 import { KakaoMapEmbed } from '@/components/KakaoMapEmbed';
@@ -12,7 +13,7 @@ import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatDateTime } from '@/lib/format';
 import { stripMapShareUrls } from '@/lib/maps';
-import type { Spot } from '@/lib/types';
+import type { AirspaceLookup, Spot } from '@/lib/types';
 
 export default function SpotDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -23,6 +24,7 @@ export default function SpotDetailScreen() {
   const [error, setError] = useState('');
   const [mapOpen, setMapOpen] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [airspace, setAirspace] = useState<AirspaceLookup | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -93,7 +95,22 @@ export default function SpotDetailScreen() {
                     <Icon ios="mappin.and.ellipse" android="location_on" color={palette.tint} size={22} />
                   </Pressable>
                 </View>
-                {mapOpen ? <KakaoMapEmbed place={spot.place} height={280} /> : null}
+                {mapOpen ? (
+                  menuOpen ? (
+                    <View style={{ height: 280 }} />
+                  ) : (
+                    <View style={{ gap: 10 }}>
+                      <KakaoMapEmbed
+                        name={spot.title}
+                        place={spot.place}
+                        height={280}
+                        airspace
+                        onAirspace={setAirspace}
+                      />
+                      <AirspaceCard data={airspace} />
+                    </View>
+                  )
+                ) : null}
               </>
             ) : null}
             {note ? <Text style={[styles.body, { color: palette.text }]}>{note}</Text> : null}
@@ -109,9 +126,9 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: 20, gap: 16, paddingBottom: 40 },
   card: { borderWidth: 1, borderRadius: 16, padding: 24, gap: 12 },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28, overflow: 'visible', zIndex: 2 },
-  title: { flex: 1, fontSize: 24, fontWeight: '700' },
-  placeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28, paddingBottom: 8, overflow: 'visible', zIndex: 2 },
+  title: { flex: 1, fontSize: 24, fontWeight: '700', lineHeight: 32 },
+  placeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 6 },
   meta: { fontSize: 16, fontWeight: '600' },
   body: { fontSize: 16, lineHeight: 24 },
 });

@@ -22,6 +22,7 @@ export function InlineMoreActions({
   const palette = Colors[useColorScheme()];
   const buttonRef = useRef<View>(null);
   const [anchor, setAnchor] = useState({ top: 0, right: 16 });
+  const screen = Dimensions.get('window');
 
   const openMenu = () => {
     buttonRef.current?.measureInWindow((x, y, width, height) => {
@@ -46,30 +47,42 @@ export function InlineMoreActions({
         accessibilityLabel="더보기">
         <Text style={[styles.more, { color: palette.muted }]}>⋮</Text>
       </Pressable>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={onToggle}>
-        <Pressable style={styles.backdrop} onPress={onToggle} />
-        <View
-          style={[
-            styles.menu,
-            {
-              top: anchor.top,
-              right: anchor.right,
-              backgroundColor: palette.card,
-              borderColor: palette.border,
-            },
-          ]}>
-          {actions.map((action, index) => (
-            <Pressable
-              key={action.label}
-              onPress={() => {
-                onToggle();
-                action.onPress();
-              }}
-              style={[styles.item, index > 0 ? { borderTopColor: palette.border, borderTopWidth: StyleSheet.hairlineWidth } : null]}>
-              <Text style={[styles.label, { color: action.danger ? '#D92D20' : palette.text }]}>{action.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        presentationStyle="overFullScreen"
+        statusBarTranslucent
+        hardwareAccelerated
+        onRequestClose={onToggle}>
+        <Pressable
+          style={[styles.overlay, { width: screen.width, height: screen.height }]}
+          onPress={onToggle}
+          accessibilityLabel="메뉴 닫기">
+          <Pressable
+            onPress={() => undefined}
+            style={[
+              styles.menu,
+              {
+                top: anchor.top,
+                right: anchor.right,
+                backgroundColor: palette.card,
+                borderColor: palette.border,
+              },
+            ]}>
+            {actions.map((action, index) => (
+              <Pressable
+                key={action.label}
+                onPress={() => {
+                  onToggle();
+                  action.onPress();
+                }}
+                style={[styles.item, index > 0 ? { borderTopColor: palette.border, borderTopWidth: StyleSheet.hairlineWidth } : null]}>
+                <Text style={[styles.label, { color: action.danger ? '#D92D20' : palette.text }]}>{action.label}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
       </Modal>
     </View>
   );
@@ -93,8 +106,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     lineHeight: 24,
   },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.28)',
   },
   menu: {
     position: 'absolute',
@@ -102,10 +116,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     overflow: 'hidden',
-    elevation: 6,
+    elevation: 12,
     shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
   },
   item: {

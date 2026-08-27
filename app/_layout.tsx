@@ -113,7 +113,7 @@ function RootLayoutNav() {
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="spot/new" options={{ title: '스팟 등록', presentation: 'modal' }} />
           <Stack.Screen name="spot/edit/[id]" options={{ title: '스팟 수정', presentation: 'modal' }} />
-          <Stack.Screen name="spot/map" options={{ title: '카카오맵' }} />
+          <Stack.Screen name="spot/map" options={{ title: '지도' }} />
           <Stack.Screen name="spot/[id]" options={{ title: '스팟' }} />
           <Stack.Screen name="repair/new" options={{ title: '수리 요청', presentation: 'modal' }} />
           <Stack.Screen name="repair/[id]" options={{ title: '수리' }} />

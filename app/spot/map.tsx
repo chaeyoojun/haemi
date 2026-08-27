@@ -20,7 +20,7 @@ export default function SpotMapScreen() {
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background }]}>
-      <KakaoMapEmbed place={query} />
+      <KakaoMapEmbed place={query} airspace />
     </View>
   );
 }

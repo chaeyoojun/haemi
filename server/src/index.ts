@@ -3,6 +3,7 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { airspaceConfigured, lookupAirspace, proxyWms } from './airspace.js';
 import { prisma } from './db.js';
 import { formatFromName, keepUpload, removeUploadsFor, storedPath, upload } from './uploads.js';
 
@@ -169,7 +170,7 @@ function toPlaceHit(doc: {
 async function searchKakaoPlaces(query: string): Promise<PlaceHit[]> {
   const key = process.env.KAKAO_REST_API_KEY || '';
   if (!key) {
-    throw new HttpError(503, '주소 검색이 아직 설정되지 않았습니다.');
+    return [];
   }
 
   const headers = { Authorization: `KakaoAK ${key}` };
@@ -228,6 +229,119 @@ async function searchKakaoPlaces(query: string): Promise<PlaceHit[]> {
   return places;
 }
 
+const REGION_TOKEN =
+  /^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청|전라|경상)/;
+
+function geocodeQueries(query: string) {
+  const trimmed = query.trim();
+  const queries: string[] = [];
+  const add = (value: string) => {
+    const next = value.trim();
+    if (next.length >= 2 && !queries.includes(next)) {
+      queries.push(next);
+    }
+  };
+  add(trimmed);
+  add(trimmed.replace(/\s+\d+(-\d+)*$/, ''));
+  for (const part of trimmed.split(/[,\s]+/)) {
+    if (
+      part.length >= 2 &&
+      !REGION_TOKEN.test(part) &&
+      !/^\d/.test(part) &&
+      !/(시|군|구|읍|면|동|로|길)$/.test(part)
+    ) {
+      add(part);
+    }
+  }
+  return queries;
+}
+
+async function searchNominatimPlaces(query: string): Promise<PlaceHit[]> {
+  const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&accept-language=ko&q=${encodeURIComponent(query)}`;
+  const nominatimRes = await fetch(url, {
+    headers: {
+      Accept: 'application/json',
+      'Accept-Language': 'ko',
+      'User-Agent': 'HMFPV/1.0 (https://if.io.kr/haemi-api)',
+    },
+  });
+  if (!nominatimRes.ok) {
+    return [];
+  }
+  const rows = (await nominatimRes.json()) as Array<{
+    place_id?: number;
+    lat?: string;
+    lon?: string;
+    name?: string;
+    display_name?: string;
+  }>;
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) =>
+      toPlaceHit({
+        id: String(row.place_id || `${row.lon},${row.lat}`),
+        name: row.name || row.display_name || query,
+        address: row.display_name || '',
+        x: row.lon,
+        y: row.lat,
+      })
+    )
+    .filter((place): place is PlaceHit => place != null);
+}
+
+async function searchPlaces(query: string): Promise<PlaceHit[]> {
+  try {
+    const kakao = await searchKakaoPlaces(query);
+    if (kakao.length > 0) {
+      return kakao;
+    }
+  } catch {
+    // Fall through to OpenStreetMap when Kakao is unset or failing.
+  }
+  for (const next of geocodeQueries(query)) {
+    const found = await searchNominatimPlaces(next);
+    if (found.length > 0) {
+      return found;
+    }
+  }
+  return [];
+}
+
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const key = process.env.KAKAO_REST_API_KEY || '';
+  if (key) {
+    const url = `https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${encodeURIComponent(String(lng))}&y=${encodeURIComponent(String(lat))}`;
+    const kakaoRes = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } });
+    if (kakaoRes.ok) {
+      const json = (await kakaoRes.json()) as {
+        documents?: Array<{
+          address?: { address_name?: string };
+          road_address?: { address_name?: string };
+        }>;
+      };
+      const doc = json.documents?.[0];
+      const address = doc?.road_address?.address_name || doc?.address?.address_name || '';
+      if (address) {
+        return address;
+      }
+    }
+  }
+  const nominatimRes = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&zoom=18&accept-language=ko`,
+    {
+      headers: {
+        Accept: 'application/json',
+        'Accept-Language': 'ko',
+        'User-Agent': 'HMFPV/1.0 (https://if.io.kr/haemi-api)',
+      },
+    }
+  );
+  if (!nominatimRes.ok) {
+    return '';
+  }
+  const json = (await nominatimRes.json()) as { display_name?: string };
+  return typeof json.display_name === 'string' ? json.display_name : '';
+}
+
 app.get(
   '/api/places',
   asyncHandler(async (req, res) => {
@@ -236,7 +350,7 @@ app.get(
       res.json({ places: [] });
       return;
     }
-    res.json({ places: await searchKakaoPlaces(query) });
+    res.json({ places: await searchPlaces(query) });
   })
 );
 
@@ -247,7 +361,7 @@ app.get(
     if (query.length < 2) {
       throw new HttpError(400, '주소를 입력해 주세요.');
     }
-    const [place] = await searchKakaoPlaces(query);
+    const [place] = await searchPlaces(query);
     if (!place) {
       throw new HttpError(404, '지도를 찾지 못했습니다.');
     }
@@ -263,27 +377,50 @@ app.get(
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
       throw new HttpError(400, '좌표가 올바르지 않습니다.');
     }
-    const key = process.env.KAKAO_REST_API_KEY || '';
-    if (!key) {
-      throw new HttpError(503, '주소 검색이 아직 설정되지 않았습니다.');
-    }
-    const url = `https://dapi.kakao.com/v2/local/geo/coord2address.json?x=${encodeURIComponent(String(lng))}&y=${encodeURIComponent(String(lat))}`;
-    const kakaoRes = await fetch(url, { headers: { Authorization: `KakaoAK ${key}` } });
-    if (!kakaoRes.ok) {
-      throw new HttpError(502, '주소를 찾지 못했습니다.');
-    }
-    const json = (await kakaoRes.json()) as {
-      documents?: Array<{
-        address?: { address_name?: string };
-        road_address?: { address_name?: string };
-      }>;
-    };
-    const doc = json.documents?.[0];
-    const address = doc?.road_address?.address_name || doc?.address?.address_name || '';
+    const address = await reverseGeocode(lat, lng);
     if (!address) {
       throw new HttpError(404, '주소를 찾지 못했습니다.');
     }
     res.json({ address, lat, lng });
+  })
+);
+
+app.get(
+  '/api/airspace',
+  asyncHandler(async (req, res) => {
+    const lat = Number(req.query.lat);
+    const lng = Number(req.query.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new HttpError(400, '좌표가 올바르지 않습니다.');
+    }
+    if (!airspaceConfigured()) {
+      throw new HttpError(503, '공역 데이터를 아직 연결하지 못했습니다.');
+    }
+    try {
+      res.json(await lookupAirspace(lat, lng));
+    } catch {
+      throw new HttpError(502, '공역 정보를 불러오지 못했습니다.');
+    }
+  })
+);
+
+app.get(
+  '/api/airspace/wms',
+  asyncHandler(async (req, res) => {
+    if (!airspaceConfigured()) {
+      throw new HttpError(503, '공역 데이터를 아직 연결하지 못했습니다.');
+    }
+    try {
+      const tile = await proxyWms(req.query as Record<string, unknown>);
+      res.setHeader('Content-Type', tile.contentType);
+      res.setHeader('Cache-Control', 'public, max-age=3600');
+      res.send(tile.body);
+    } catch (error) {
+      if (error instanceof Error && error.message === 'bad-layers') {
+        throw new HttpError(400, '공역 레이어가 올바르지 않습니다.');
+      }
+      throw new HttpError(502, '공역 지도를 불러오지 못했습니다.');
+    }
   })
 );
 

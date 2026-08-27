@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
+import { AirspaceCard } from '@/components/AirspaceCard';
 import { Field, Input } from '@/components/Form';
 import { KakaoMapEmbed } from '@/components/KakaoMapEmbed';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { coordsFromPlace, reverseNominatim, type MapCoords, type PlaceHit } from '@/lib/maps';
+import type { AirspaceLookup } from '@/lib/types';
 
 export function PlaceSearch({
   value,
@@ -25,6 +27,7 @@ export function PlaceSearch({
   const [picked, setPicked] = useState(Boolean(value.trim()));
   const [mapPlace, setMapPlace] = useState(value.trim());
   const [mapCoords, setMapCoords] = useState<MapCoords | null>(null);
+  const [airspace, setAirspace] = useState<AirspaceLookup | null>(null);
 
   useEffect(() => {
     setQuery(value);
@@ -136,8 +139,13 @@ export function PlaceSearch({
             lat={mapCoords?.lat}
             lng={mapCoords?.lng}
             height={mapHeight}
+            airspace
             onPinMove={movePin}
+            onAirspace={setAirspace}
           />
+          <View style={{ marginTop: 10 }}>
+            <AirspaceCard data={airspace} />
+          </View>
         </View>
       ) : null}
     </Field>

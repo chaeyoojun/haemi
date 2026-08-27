@@ -23,6 +23,8 @@ export function Input({
   secureTextEntry,
   autoCapitalize,
   autoCorrect,
+  returnKeyType,
+  onSubmitEditing,
 }: {
   value: string;
   onChangeText: (value: string) => void;
@@ -32,6 +34,8 @@ export function Input({
   secureTextEntry?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   autoCorrect?: boolean;
+  returnKeyType?: 'done' | 'go' | 'next' | 'search' | 'send';
+  onSubmitEditing?: () => void;
 }) {
   const palette = Colors[useColorScheme()];
   return (
@@ -44,6 +48,9 @@ export function Input({
       secureTextEntry={secureTextEntry}
       autoCapitalize={autoCapitalize}
       autoCorrect={autoCorrect}
+      returnKeyType={returnKeyType}
+      onSubmitEditing={onSubmitEditing}
+      blurOnSubmit
       style={[
         styles.input,
         multiline ? styles.multiline : null,

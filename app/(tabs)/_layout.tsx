@@ -32,6 +32,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="flight"
+        options={{
+          title: '비행',
+          tabBarIcon: ({ color }) => (
+            <Icon ios="airplane" android="flight" color={color} size={24} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="spots"
         options={{
           title: '스팟',

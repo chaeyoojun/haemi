@@ -22,6 +22,13 @@ const tabs: {
     android: 'campaign',
   },
   {
+    href: '/flight',
+    title: '비행',
+    match: (path) => path === '/flight' || path.startsWith('/flight'),
+    ios: 'airplane',
+    android: 'flight',
+  },
+  {
     href: '/spots',
     title: '스팟',
     match: (path) => path.startsWith('/spot'),

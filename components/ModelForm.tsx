@@ -11,6 +11,7 @@ export type PickedFile = {
   uri: string;
   name: string;
   mimeType?: string | null;
+  blob?: Blob;
 };
 
 export type ModelFormValues = {
@@ -53,13 +54,14 @@ export function ModelForm({
       const result = await DocumentPicker.getDocumentAsync({
         type: '*/*',
         copyToCacheDirectory: true,
+        base64: false,
       });
       if (result.canceled || !result.assets?.[0]) {
         return;
       }
       const asset = result.assets[0];
       const ext = asset.name.includes('.') ? asset.name.split('.').pop()?.toUpperCase() || '' : '';
-      onPicked({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType });
+      onPicked({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType, blob: asset.file });
       onChange({
         ...values,
         fileName: asset.name,
@@ -120,7 +122,7 @@ function appendModelFile(form: FormData, values: ModelFormValues, file: PickedFi
   form.append('url', values.url);
   form.append('description', values.description);
   if (file) {
-    appendLocalFile(form, 'file', file.uri);
+    appendLocalFile(form, 'file', file);
   }
 }
 

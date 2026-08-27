@@ -10,6 +10,7 @@ export type PickedPhoto = {
   uri: string;
   name: string;
   mimeType?: string | null;
+  blob?: Blob;
 };
 
 const MAX_PHOTOS = 3;
@@ -29,6 +30,7 @@ export function PhotoAttach({
       uri: asset.uri,
       name: asset.fileName || `photo-${photos.length + index + 1}.jpg`,
       mimeType: asset.mimeType || 'image/jpeg',
+      blob: asset.file,
     }));
     if (next.length > 0) {
       onChange([...photos, ...next]);
@@ -118,7 +120,7 @@ export function toRepairFormData({
   form.append('place', place);
   form.append('description', description);
   for (const photo of photos) {
-    appendLocalFile(form, 'photos', photo.uri);
+    appendLocalFile(form, 'photos', photo);
   }
   return form;
 }

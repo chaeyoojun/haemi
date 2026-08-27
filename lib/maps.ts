@@ -206,15 +206,22 @@ export function mapWindowHtml(
         else { overlays[key].addTo(map); btn.classList.add('on'); }
       });
     }
+    function send(payload) {
+      var raw = JSON.stringify(payload);
+      if (window.ReactNativeWebView) {
+        window.ReactNativeWebView.postMessage(raw);
+      }
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage(raw, '*');
+      }
+    }
     window.queryAirspace = function(lat, lng, move) {
       var now = Date.now();
       if (now - lastQuery < 250) return;
       lastQuery = now;
       if (move !== false) marker.setLatLng([lat, lng]);
       if (window.map && window.map.closePopup) window.map.closePopup();
-      if (window.ReactNativeWebView) {
-        window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'airspace-query', lat: lat, lng: lng }));
-      }
+      send({ type: 'airspace-query', lat: lat, lng: lng });
     };
     if (${airspace}) {
       map.on('click', function(e) { window.queryAirspace(e.latlng.lat, e.latlng.lng); });
@@ -228,9 +235,7 @@ export function mapWindowHtml(
         if (now - lastDrop < 400) return;
         lastDrop = now;
         marker.setLatLng(latlng);
-        if (window.ReactNativeWebView) {
-          window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'pin', lat: latlng.lat, lng: latlng.lng }));
-        }
+        send({ type: 'pin', lat: latlng.lat, lng: latlng.lng });
         if (window.queryAirspace) window.queryAirspace(latlng.lat, latlng.lng, false);
       }
       map.on('contextmenu', function(e) {

@@ -12,14 +12,35 @@ import { useAuth } from '@/lib/auth';
 import { formatPeriod } from '@/lib/format';
 import type { Vote } from '@/lib/types';
 
+function voteKey(id: string) {
+  return `haemi.vote.${id}`;
+}
+
+function parseVotedIds(value: string | null) {
+  if (!value) {
+    return [] as string[];
+  }
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (Array.isArray(parsed)) {
+      return parsed.filter((item): item is string => typeof item === 'string' && item.length > 0);
+    }
+  } catch {
+    // Older builds stored a single option id.
+  }
+  return [value];
+}
+
 export default function VoteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const palette = Colors[useColorScheme()];
   const { isAdmin } = useAuth();
   const [vote, setVote] = useState<Vote | null>(null);
-  const [votedOptionId, setVotedOptionId] = useState('');
+  const [votedIds, setVotedIds] = useState<string[]>([]);
+  const [pickedIds, setPickedIds] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const load = useCallback(async () => {
@@ -30,42 +51,69 @@ export default function VoteDetailScreen() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '불러오지 못했습니다.');
     }
-    const value = await AsyncStorage.getItem(`haemi.vote.${id}`);
-    if (value) setVotedOptionId(value);
+    const stored = parseVotedIds(await AsyncStorage.getItem(voteKey(id)));
+    setVotedIds(stored);
+    setPickedIds(stored);
   }, [id]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  const onCast = async (optionId: string) => {
-    if (!vote) return;
-    if (votedOptionId) {
-      Alert.alert('이미 투표했습니다.', '이 기기에서는 한 번만 참여할 수 있습니다.');
+  const onToggle = (optionId: string) => {
+    if (!vote || votedIds.length > 0) {
+      if (votedIds.length > 0) {
+        Alert.alert('이미 투표했습니다.', '이 기기에서는 한 번만 참여할 수 있습니다.');
+      }
       return;
     }
     const now = Date.now();
-    const notStarted = vote.startsAt ? new Date(vote.startsAt).getTime() > now : false;
-    const ended = vote.endsAt ? new Date(vote.endsAt).getTime() <= now : false;
-    if (notStarted) {
+    if (vote.startsAt && new Date(vote.startsAt).getTime() > now) {
       Alert.alert('아직 시작되지 않았습니다.', '시작 시간이 되면 투표할 수 있습니다.');
       return;
     }
-    if (ended) {
+    if (vote.endsAt && new Date(vote.endsAt).getTime() <= now) {
       Alert.alert('마감된 투표입니다.', '기간이 지나 참여할 수 없습니다.');
       return;
     }
-    const updated = await api.create<Vote>(`/api/votes/${vote.id}/cast`, { optionId });
-    setVote(updated);
-    setVotedOptionId(optionId);
-    await AsyncStorage.setItem(`haemi.vote.${vote.id}`, optionId);
+    if (vote.allowMultiple === false) {
+      setPickedIds([optionId]);
+      return;
+    }
+    setPickedIds((current) =>
+      current.includes(optionId) ? current.filter((item) => item !== optionId) : [...current, optionId]
+    );
+  };
+
+  const onCast = async () => {
+    if (!vote || votedIds.length > 0 || pickedIds.length === 0) {
+      return;
+    }
+    setSaving(true);
+    setError('');
+    try {
+      const updated = await api.create<Vote>(`/api/votes/${vote.id}/cast`, {
+        optionId: pickedIds[0],
+        optionIds: pickedIds,
+      });
+      setVote(updated);
+      setVotedIds(pickedIds);
+      await AsyncStorage.setItem(voteKey(vote.id), JSON.stringify(pickedIds));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '투표하지 못했습니다.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const total = vote ? vote.options.reduce((sum, option) => sum + option.count, 0) : 0;
   const now = Date.now();
   const notStarted = vote?.startsAt ? new Date(vote.startsAt).getTime() > now : false;
   const ended = vote?.endsAt ? new Date(vote.endsAt).getTime() <= now : false;
-  const canVote = Boolean(vote) && !votedOptionId && !notStarted && !ended;
+  const hasVoted = votedIds.length > 0;
+  const canVote = Boolean(vote) && !hasVoted && !notStarted && !ended;
+  const allowMultiple = vote?.allowMultiple !== false;
+  const highlightIds = hasVoted ? votedIds : pickedIds;
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background }]}>
@@ -113,15 +161,15 @@ export default function VoteDetailScreen() {
               ) : null}
               <Text style={[styles.body, { color: palette.muted }]}>
                 총 {total}표
-                {notStarted ? ' · 시작 전' : ended ? ' · 마감' : ''}
+                {notStarted ? ' · 시작 전' : ended ? ' · 마감' : allowMultiple ? ' · 여러 개 선택' : ''}
               </Text>
             </View>
             {vote.options.map((option) => {
-              const selected = votedOptionId === option.id;
+              const selected = highlightIds.includes(option.id);
               return (
                 <Pressable
                   key={option.id}
-                  onPress={() => onCast(option.id)}
+                  onPress={() => onToggle(option.id)}
                   style={[
                     styles.option,
                     {
@@ -135,6 +183,20 @@ export default function VoteDetailScreen() {
                 </Pressable>
               );
             })}
+            {error && vote ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
+            {canVote ? (
+              <Pressable
+                onPress={() => void onCast()}
+                disabled={saving || pickedIds.length === 0}
+                style={[
+                  styles.submit,
+                  { backgroundColor: palette.tint, opacity: saving || pickedIds.length === 0 ? 0.7 : 1 },
+                ]}>
+                <Text style={styles.submitText}>
+                  {saving ? '투표 중...' : allowMultiple ? `투표하기 (${pickedIds.length})` : '투표하기'}
+                </Text>
+              </Pressable>
+            ) : null}
           </>
         )}
       </RefreshableScroll>
@@ -160,4 +222,6 @@ const styles = StyleSheet.create({
   },
   optionLabel: { fontSize: 16, fontWeight: '600', flex: 1, paddingRight: 12 },
   optionCount: { fontSize: 15, fontWeight: '700' },
+  submit: { marginTop: 8, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

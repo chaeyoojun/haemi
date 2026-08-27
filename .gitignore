@@ -45,6 +45,8 @@ server/uploads/
 
 # app release binaries
 releases/*.apk
+releases/*.ipa
+*.xcarchive
 
 # emulator dumps
 bugreport*.zip

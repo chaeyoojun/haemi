@@ -2,18 +2,27 @@
   "expo": {
     "name": "HMFPV",
     "slug": "haemi",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "haemi",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.haemi.app"
+      "bundleIdentifier": "com.haemi.app",
+      "buildNumber": "7",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "수리 요청에 사진을 첨부합니다.",
+        "NSPhotoLibraryUsageDescription": "수리 요청에 사진을 첨부합니다.",
+        "NSPhotoLibraryAddUsageDescription": "수리 요청에 사진을 첨부합니다."
+      }
     },
     "android": {
       "package": "com.haemi.app",
-      "versionCode": 6,
+      "versionCode": 7,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.REQUEST_INSTALL_PACKAGES"

@@ -47,14 +47,15 @@ model Notice {
 }
 
 model Vote {
-  id        String       @id @default(cuid())
-  title     String
-  body      String       @default("")
-  startsAt  DateTime     @default(now())
-  endsAt    DateTime
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  options   VoteOption[]
+  id            String       @id @default(cuid())
+  title         String
+  body          String       @default("")
+  startsAt      DateTime     @default(now())
+  endsAt        DateTime
+  allowMultiple Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  options       VoteOption[]
 }
 
 model VoteOption {

@@ -47,6 +47,7 @@ export type Vote = {
   body: string;
   startsAt: string;
   endsAt: string;
+  allowMultiple: boolean;
   createdAt: string;
   updatedAt: string;
   options: VoteOption[];

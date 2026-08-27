@@ -2,8 +2,7 @@ import { Redirect, useLocalSearchParams, useNavigation, useRouter } from 'expo-r
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { DateTimeField } from '@/components/DateTimeField';
-import { Field, Input } from '@/components/Form';
+import { cleanVoteOptions, VoteFormFields } from '@/components/VoteForm';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
@@ -19,9 +18,8 @@ export default function EditVoteScreen() {
   const palette = Colors[useColorScheme()];
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
-  const [optionA, setOptionA] = useState('');
-  const [optionB, setOptionB] = useState('');
-  const [optionC, setOptionC] = useState('');
+  const [options, setOptions] = useState(['', '']);
+  const [allowMultiple, setAllowMultiple] = useState(true);
   const [startsAt, setStartsAt] = useState(() => new Date());
   const [endsAt, setEndsAt] = useState(() => new Date());
   const [ready, setReady] = useState(false);
@@ -35,9 +33,10 @@ export default function EditVoteScreen() {
       .then((vote) => {
         setTitle(vote.title);
         setBody(vote.body);
-        setOptionA(vote.options[0]?.label || '');
-        setOptionB(vote.options[1]?.label || '');
-        setOptionC(vote.options[2]?.label || '');
+        setOptions(
+          vote.options.length >= 2 ? vote.options.map((option) => option.label) : ['', '']
+        );
+        setAllowMultiple(vote.allowMultiple !== false);
         setStartsAt(new Date(vote.startsAt));
         setEndsAt(new Date(vote.endsAt));
         setReady(true);
@@ -47,6 +46,11 @@ export default function EditVoteScreen() {
 
   const onSubmit = useCallback(async () => {
     if (!id) return;
+    const labels = cleanVoteOptions(options);
+    if (labels.length < 2) {
+      setError('선택지는 2개 이상 넣어 주세요.');
+      return;
+    }
     if (endsAt.getTime() <= startsAt.getTime()) {
       setError('마감은 시작 이후여야 합니다.');
       return;
@@ -57,7 +61,8 @@ export default function EditVoteScreen() {
       const vote = await api.patch<Vote>(`/api/votes/${id}`, {
         title,
         body,
-        options: [optionA, optionB, optionC],
+        options: labels,
+        allowMultiple,
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
       });
@@ -66,7 +71,7 @@ export default function EditVoteScreen() {
       setError(caught instanceof Error ? caught.message : '저장하지 못했습니다.');
       setSaving(false);
     }
-  }, [body, endsAt, id, optionA, optionB, optionC, router, startsAt, title]);
+  }, [allowMultiple, body, endsAt, id, options, router, startsAt, title]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -99,23 +104,20 @@ export default function EditVoteScreen() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: palette.background }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Field label="투표 제목">
-          <Input value={title} onChangeText={setTitle} placeholder="다음 모임 장소" />
-        </Field>
-        <Field label="설명">
-          <Input value={body} onChangeText={setBody} placeholder="선택 기준이나 마감 안내" multiline />
-        </Field>
-        <DateTimeField label="시작" value={startsAt} onChange={setStartsAt} />
-        <DateTimeField label="마감" value={endsAt} onChange={setEndsAt} minimumDate={startsAt} />
-        <Field label="선택지 1">
-          <Input value={optionA} onChangeText={setOptionA} placeholder="필수" />
-        </Field>
-        <Field label="선택지 2">
-          <Input value={optionB} onChangeText={setOptionB} placeholder="필수" />
-        </Field>
-        <Field label="선택지 3">
-          <Input value={optionC} onChangeText={setOptionC} placeholder="선택" />
-        </Field>
+        <VoteFormFields
+          title={title}
+          body={body}
+          options={options}
+          allowMultiple={allowMultiple}
+          startsAt={startsAt}
+          endsAt={endsAt}
+          onTitle={setTitle}
+          onBody={setBody}
+          onOptions={setOptions}
+          onAllowMultiple={setAllowMultiple}
+          onStartsAt={setStartsAt}
+          onEndsAt={setEndsAt}
+        />
         {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
       </ScrollView>
     </KeyboardAvoidingView>

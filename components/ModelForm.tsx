@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Field, Input } from '@/components/Form';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
+import { appendLocalFile } from '@/lib/formData';
 
 export type PickedFile = {
   uri: string;
@@ -119,11 +120,7 @@ function appendModelFile(form: FormData, values: ModelFormValues, file: PickedFi
   form.append('url', values.url);
   form.append('description', values.description);
   if (file) {
-    form.append('file', {
-      uri: file.uri,
-      name: file.name,
-      type: file.mimeType || 'application/octet-stream',
-    } as unknown as Blob);
+    appendLocalFile(form, 'file', file.uri);
   }
 }
 

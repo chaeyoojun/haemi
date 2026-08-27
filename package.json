@@ -9,8 +9,12 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "prebuild": "expo prebuild --platform android --non-interactive",
+    "prebuild:ios": "expo prebuild --platform ios --non-interactive",
     "apk": "node scripts/build-apk.cjs",
-    "publish-apk": "powershell -NoProfile -ExecutionPolicy Bypass -File deploy/publish-apk.ps1"
+    "ipa": "node scripts/build-ipa.cjs",
+    "ipa:open": "node scripts/build-ipa.cjs --open",
+    "publish-apk": "powershell -NoProfile -ExecutionPolicy Bypass -File deploy/publish-apk.ps1",
+    "publish-ipa": "node scripts/publish-release.cjs --ipa"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

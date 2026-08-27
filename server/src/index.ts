@@ -64,6 +64,28 @@ function idParam(req: Request) {
   return id;
 }
 
+function boolField(value: unknown, fallback: boolean) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+  if (value === 'true' || value === 1 || value === '1') {
+    return true;
+  }
+  if (value === 'false' || value === 0 || value === '0') {
+    return false;
+  }
+  return fallback;
+}
+
+function optionIdsFromBody(body: { optionId?: unknown; optionIds?: unknown }) {
+  const raw = Array.isArray(body.optionIds)
+    ? body.optionIds
+    : body.optionId != null
+      ? [body.optionId]
+      : [];
+  return [...new Set(raw.map((id) => (typeof id === 'string' ? id.trim() : '')).filter(Boolean))];
+}
+
 function dateField(value: unknown, field: string) {
   if (typeof value !== 'string' || !value.trim()) {
     throw new HttpError(400, `${field}을(를) 선택해 주세요.`);
@@ -641,6 +663,7 @@ app.post(
         body: text(req.body.body, '설명', false),
         startsAt,
         endsAt,
+        allowMultiple: boolField(req.body.allowMultiple, true),
         options: { create: labels.map((label: string) => ({ label })) },
       },
       include: voteInclude,
@@ -711,6 +734,7 @@ app.patch(
         ...(req.body.body != null ? { body: text(req.body.body, '설명', false) } : {}),
         ...(req.body.startsAt != null ? { startsAt } : {}),
         ...(req.body.endsAt != null ? { endsAt } : {}),
+        ...(req.body.allowMultiple != null ? { allowMultiple: boolField(req.body.allowMultiple, existing.allowMultiple) } : {}),
       },
       include: voteInclude,
     });
@@ -732,17 +756,27 @@ app.post(
     if (vote.endsAt.getTime() <= Date.now()) {
       throw new HttpError(400, '마감된 투표입니다.');
     }
-    const optionId = text(req.body.optionId, '선택지');
-    const option = await prisma.voteOption.findFirst({
-      where: { id: optionId, voteId },
+    const optionIds = optionIdsFromBody(req.body);
+    if (optionIds.length === 0) {
+      throw new HttpError(400, '선택지를 고르세요.');
+    }
+    if (!vote.allowMultiple && optionIds.length > 1) {
+      throw new HttpError(400, '한 개만 선택할 수 있습니다.');
+    }
+    const options = await prisma.voteOption.findMany({
+      where: { id: { in: optionIds }, voteId },
     });
-    if (!option) {
+    if (options.length !== optionIds.length) {
       throw new HttpError(404, '선택지를 찾을 수 없습니다.');
     }
-    await prisma.voteOption.update({
-      where: { id: option.id },
-      data: { count: { increment: 1 } },
-    });
+    await prisma.$transaction(
+      options.map((option) =>
+        prisma.voteOption.update({
+          where: { id: option.id },
+          data: { count: { increment: 1 } },
+        })
+      )
+    );
     const updated = await prisma.vote.findUniqueOrThrow({
       where: { id: voteId },
       include: voteInclude,
@@ -877,29 +911,55 @@ app.post(
 );
 
 const releaseDir = process.env.APP_RELEASE_DIR || path.join(process.cwd(), 'releases');
+const publicBase = process.env.PUBLIC_APP_BASE || 'https://if.io.kr/haemi-api';
+const iosBundleId = 'com.haemi.app';
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
 
 function readAppRelease() {
   const metaPath = path.join(releaseDir, 'version.json');
-  if (!fs.existsSync(metaPath)) {
-    return { version: '1.0.0', versionCode: 0, notes: '' };
-  }
-  const raw = JSON.parse(fs.readFileSync(metaPath, 'utf8')) as {
-    version?: string;
-    versionCode?: number;
-    notes?: string;
-  };
+  const apkPath = path.join(releaseDir, 'hmfpv.apk');
+  const ipaPath = path.join(releaseDir, 'hmfpv.ipa');
+  const fallback = { version: '1.0.0', versionCode: 0, notes: '' };
+  const raw = fs.existsSync(metaPath)
+    ? (JSON.parse(fs.readFileSync(metaPath, 'utf8')) as {
+        version?: string;
+        versionCode?: number;
+        notes?: string;
+      })
+    : fallback;
   return {
-    version: typeof raw.version === 'string' ? raw.version : '1.0.0',
+    version: typeof raw.version === 'string' ? raw.version : fallback.version,
     versionCode: Number(raw.versionCode) || 0,
     notes: typeof raw.notes === 'string' ? raw.notes : '',
+    hasApk: fs.existsSync(apkPath),
+    hasIpa: fs.existsSync(ipaPath),
   };
+}
+
+function iosInstallUrl() {
+  const manifest = `${publicBase}/api/app/manifest.plist`;
+  return `itms-services://?action=download-manifest&url=${encodeURIComponent(manifest)}`;
 }
 
 app.get('/api/app/version', (_req, res) => {
   const release = readAppRelease();
   res.json({
-    ...release,
+    version: release.version,
+    versionCode: release.versionCode,
+    notes: release.notes,
+    hasApk: release.hasApk,
+    hasIpa: release.hasIpa,
     apkUrl: '/api/app/hmfpv.apk',
+    ipaUrl: '/api/app/hmfpv.ipa',
+    iosInstallUrl: iosInstallUrl(),
   });
 });
 
@@ -913,6 +973,95 @@ app.get(
     res.download(apkPath, 'HMFPV.apk');
   })
 );
+
+app.get(
+  '/api/app/hmfpv.ipa',
+  asyncHandler(async (_req, res) => {
+    const ipaPath = path.join(releaseDir, 'hmfpv.ipa');
+    if (!fs.existsSync(ipaPath)) {
+      throw new HttpError(404, 'iOS 설치 파일이 없습니다.');
+    }
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.download(ipaPath, 'HMFPV.ipa');
+  })
+);
+
+app.get('/api/app/manifest.plist', (_req, res) => {
+  const release = readAppRelease();
+  if (!release.hasIpa) {
+    res.status(404).type('text/plain').send('iOS 설치 파일이 없습니다.');
+    return;
+  }
+  res
+    .type('application/xml')
+    .send(`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>items</key>
+  <array>
+    <dict>
+      <key>assets</key>
+      <array>
+        <dict>
+          <key>kind</key>
+          <string>software-package</string>
+          <key>url</key>
+          <string>${publicBase}/api/app/hmfpv.ipa</string>
+        </dict>
+      </array>
+      <key>metadata</key>
+      <dict>
+        <key>bundle-identifier</key>
+        <string>${iosBundleId}</string>
+        <key>bundle-version</key>
+        <string>${release.version}</string>
+        <key>kind</key>
+        <string>software</string>
+        <key>title</key>
+        <string>HMFPV</string>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>
+`);
+});
+
+app.get('/app', (_req, res) => {
+  const release = readAppRelease();
+  const apkHref = `${publicBase}/api/app/hmfpv.apk`;
+  const iosHref = iosInstallUrl();
+  res.type('html').send(`<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HMFPV 설치</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; color: #1a1a1a; }
+    main { max-width: 420px; margin: 0 auto; padding: 48px 24px; }
+    h1 { font-size: 28px; margin: 0 0 8px; }
+    p { color: #666; line-height: 1.5; }
+    .ver { color: #F07D22; font-weight: 700; margin: 16px 0 24px; }
+    a.btn { display: block; text-align: center; text-decoration: none; color: #fff; background: #F07D22; border-radius: 14px; padding: 16px; font-weight: 700; margin-bottom: 12px; }
+    a.btn.secondary { background: #1a1a1a; }
+    a.btn.disabled { background: #ddd; color: #888; pointer-events: none; }
+    .hint { font-size: 13px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>HMFPV</h1>
+    <p>${escapeHtml(release.notes || '앱을 설치하거나 업데이트하세요.')}</p>
+    <div class="ver">${escapeHtml(release.version)}</div>
+    <a class="btn${release.hasApk ? '' : ' disabled'}" href="${apkHref}">Android APK 받기</a>
+    <a class="btn secondary${release.hasIpa ? '' : ' disabled'}" href="${iosHref}">iPhone에 설치</a>
+    <p class="hint">iPhone 설치는 Safari에서 열고, 기기 서명이 된 IPA가 올라온 뒤에만 동작합니다.</p>
+  </main>
+</body>
+</html>`);
+});
 
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof HttpError) {

@@ -50,19 +50,22 @@ if ($LASTEXITCODE -ne 0) { throw "SCP failed" }
 $remote = @"
 set -e
 cd $RemoteDir
+if [ -f .env ]; then cp .env .env.keep; fi
 tar -xzf deploy.tgz
 rm -f deploy.tgz
+if [ -f .env.keep ]; then mv .env.keep .env; fi
 sed -i 's/\r$//' deploy/install-nginx.sh 2>/dev/null || true
 docker compose up -d --build
 cp deploy/haemi-api.location.conf /tmp/haemi-api.location.conf
 bash deploy/install-nginx.sh
-for i in 1 2 3 4 5 6 7 8 9 10; do
+for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
   if curl -fsS http://127.0.0.1:4400/health; then
     exit 0
   fi
   sleep 2
 done
 echo "API health check failed"
+docker compose logs --tail=40 api || true
 exit 1
 "@
 $remote = $remote -replace "`r", ""

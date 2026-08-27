@@ -4,6 +4,7 @@ import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Field } from '@/components/Form';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
+import { appendLocalFile } from '@/lib/formData';
 
 export type PickedPhoto = {
   uri: string;
@@ -117,11 +118,7 @@ export function toRepairFormData({
   form.append('place', place);
   form.append('description', description);
   for (const photo of photos) {
-    form.append('photos', {
-      uri: photo.uri,
-      name: photo.name,
-      type: photo.mimeType || 'image/jpeg',
-    } as unknown as Blob);
+    appendLocalFile(form, 'photos', photo.uri);
   }
   return form;
 }

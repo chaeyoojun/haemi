@@ -1,7 +1,7 @@
 import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as IntentLauncher from 'expo-intent-launcher';
-import { Platform } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
 import { API_URL, api, fileUrl } from '@/lib/api';
 
@@ -10,12 +10,18 @@ export type AppRelease = {
   versionCode: number;
   notes: string;
   apkUrl: string;
+  ipaUrl?: string;
+  iosInstallUrl?: string;
+  hasIpa?: boolean;
 };
 
 export function currentVersionCode() {
   const native = Number(Constants.nativeBuildVersion);
   if (Number.isFinite(native) && native > 0) {
     return native;
+  }
+  if (Platform.OS === 'ios') {
+    return Number(Constants.expoConfig?.ios?.buildNumber || 0);
   }
   return Number(Constants.expoConfig?.android?.versionCode || 0);
 }
@@ -28,8 +34,12 @@ export async function downloadAndInstallRelease(
   release: AppRelease,
   onProgress?: (ratio: number) => void
 ) {
+  if (Platform.OS === 'ios') {
+    await Linking.openURL(release.iosInstallUrl || `${API_URL}/app`);
+    return;
+  }
   if (Platform.OS !== 'android') {
-    throw new Error('안드로이드에서만 앱 업데이트를 설치할 수 있습니다.');
+    throw new Error('이 기기에서는 앱 업데이트를 설치할 수 없습니다.');
   }
   if (!FileSystem.cacheDirectory) {
     throw new Error('파일을 저장할 수 없습니다.');
@@ -68,4 +78,8 @@ export async function downloadAndInstallRelease(
 
 export function apkDownloadUrl() {
   return `${API_URL}/api/app/hmfpv.apk`;
+}
+
+export function appDownloadPageUrl() {
+  return `${API_URL}/app`;
 }

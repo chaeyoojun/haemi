@@ -58,6 +58,13 @@ const tabs: {
     ios: 'checkmark.square.fill',
     android: 'how_to_vote',
   },
+  {
+    href: '/game',
+    title: '게임',
+    match: (path) => path === '/game' || path.startsWith('/game'),
+    ios: 'gamecontroller.fill',
+    android: 'sports_esports',
+  },
 ];
 
 export function AppTabBar() {
@@ -151,7 +158,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 10,
     paddingVertical: 10,
     borderRadius: 10,
     cursor: 'pointer',

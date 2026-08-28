@@ -76,6 +76,15 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="game"
+        options={{
+          title: '게임',
+          tabBarIcon: ({ color }) => (
+            <Icon ios="gamecontroller.fill" android="sports_esports" color={color} size={24} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

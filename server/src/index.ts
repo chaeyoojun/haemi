@@ -1430,6 +1430,53 @@ function iosInstallUrl() {
   return `itms-services://?action=download-manifest&url=${encodeURIComponent(manifest)}`;
 }
 
+app.get(
+  '/api/game/ranks',
+  asyncHandler(async (_req, res) => {
+    const rows = await prisma.gameScore.findMany({
+      orderBy: [{ score: 'desc' }, { updatedAt: 'asc' }],
+      take: 10,
+    });
+    res.json(
+      rows.map((row, index) => ({
+        rank: index + 1,
+        name: row.name,
+        score: row.score,
+      }))
+    );
+  })
+);
+
+app.post(
+  '/api/game/scores',
+  asyncHandler(async (req, res) => {
+    const name = actorName(req);
+    if (name.length < 2) {
+      throw new HttpError(400, '로그인 이름이 필요합니다.');
+    }
+    const score = Number(req.body?.score);
+    if (!Number.isFinite(score) || score < 1) {
+      throw new HttpError(400, '점수가 올바르지 않습니다.');
+    }
+    const next = Math.min(9999, Math.floor(score));
+    const current = await prisma.gameScore.findUnique({ where: { name } });
+    if (!current) {
+      const created = await prisma.gameScore.create({ data: { name, score: next } });
+      res.json({ name: created.name, score: created.score, best: true });
+      return;
+    }
+    if (next > current.score) {
+      const updated = await prisma.gameScore.update({
+        where: { name },
+        data: { score: next },
+      });
+      res.json({ name: updated.name, score: updated.score, best: true });
+      return;
+    }
+    res.json({ name: current.name, score: current.score, best: false });
+  })
+);
+
 app.get('/api/app/version', (_req, res) => {
   const release = readAppRelease();
   res.json({

@@ -38,6 +38,17 @@ function withSplashPoster(config) {
         });
       }
     }
+    const appTheme = modConfig.modResults.resources.style?.find(
+      (style) => style.$?.name === 'AppTheme'
+    );
+    if (appTheme) {
+      appTheme.item = appTheme.item || [];
+      appTheme.item = appTheme.item.filter((item) => item.$?.name !== 'android:windowBackground');
+      appTheme.item.push({
+        $: { name: 'android:windowBackground' },
+        _: '@color/splashscreen_background',
+      });
+    }
     return modConfig;
   });
 

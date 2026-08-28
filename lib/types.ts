@@ -115,3 +115,9 @@ export const repairStatusLabel: Record<RepairStatus, string> = {
   doing: '진행',
   done: '완료',
 };
+
+export type GameRank = {
+  rank: number;
+  name: string;
+  score: number;
+};

@@ -85,7 +85,7 @@ function SignedInApp() {
   }, [role]);
 
   if (!ready) {
-    return null;
+    return <View style={{ flex: 1, backgroundColor: '#FFFFFF' }} />;
   }
   if (!role) {
     return <LoginScreen />;
@@ -147,6 +147,7 @@ function RootLayoutNav() {
           <Stack.Screen name="model/new" options={{ title: '3D 파일 등록', presentation: 'modal' }} />
           <Stack.Screen name="model/[id]" options={{ title: '3D 파일' }} />
           <Stack.Screen name="model/edit/[id]" options={{ title: '3D 파일 수정', presentation: 'modal' }} />
+          <Stack.Screen name="game/ranks" options={{ title: '랭킹' }} />
         </Stack>
       </View>
       {wide ? null : <AppTabBar />}

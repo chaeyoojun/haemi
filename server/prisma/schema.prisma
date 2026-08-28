@@ -119,3 +119,13 @@ model PushToken {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model GameScore {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  score     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([score])
+}

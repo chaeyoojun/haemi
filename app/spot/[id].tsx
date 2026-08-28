@@ -11,7 +11,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDateTime } from '@/lib/format';
+import { formatAuthorTime } from '@/lib/format';
 import { stripMapShareUrls } from '@/lib/maps';
 import type { AirspaceLookup, Spot } from '@/lib/types';
 
@@ -114,7 +114,7 @@ export default function SpotDetailScreen() {
               </>
             ) : null}
             {note ? <Text style={[styles.body, { color: palette.text }]}>{note}</Text> : null}
-            <Text style={[styles.body, { color: palette.muted }]}>{formatDateTime(spot.createdAt)}</Text>
+            <Text style={[styles.body, { color: palette.muted }]}>{formatAuthorTime(spot.author, spot.createdAt)}</Text>
           </View>
         )}
       </RefreshableScroll>

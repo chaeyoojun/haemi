@@ -4,15 +4,18 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { ResourceList } from '@/components/ResourceList';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
-import { useAuth } from '@/lib/auth';
+import { confirmLogout, useAuth } from '@/lib/auth';
 import { formatDate } from '@/lib/format';
+import { useWideLayout } from '@/lib/layout';
 import { detailHref } from '@/lib/nav';
 import type { Notice } from '@/lib/types';
 import { useApiList } from '@/lib/useApiList';
 
 export default function NoticesScreen() {
   const router = useRouter();
-  const { isAdmin } = useAuth();
+  const palette = Colors[useColorScheme()];
+  const wide = useWideLayout();
+  const { isAdmin, displayName, logout } = useAuth();
   const { items, ready, error, reload } = useApiList<Notice>('/api/notices');
 
   return (
@@ -29,7 +32,14 @@ export default function NoticesScreen() {
       createHref="/notice/new"
       createLabel="공지 작성"
       canCreate={isAdmin}
-      onRetry={reload}>
+      onRetry={reload}
+      header={
+        !wide && displayName ? (
+          <Pressable onPress={() => confirmLogout(logout)} style={styles.who}>
+            <Text style={[styles.whoText, { color: palette.muted }]}>{displayName} · 로그아웃</Text>
+          </Pressable>
+        ) : undefined
+      }>
       {items.map((notice) => (
         <NoticeRow
           key={notice.id}
@@ -67,6 +77,8 @@ function NoticeRow({
 }
 
 const styles = StyleSheet.create({
+  who: { paddingHorizontal: 20, paddingTop: 12 },
+  whoText: { fontSize: 13, fontWeight: '600' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -102,6 +102,11 @@ export function ItemCard({
         <Text style={[styles.tableTitle, { color: palette.text }]} numberOfLines={1}>
           {title}
         </Text>
+        {meta ? (
+          <Text style={[styles.tableMeta, { color: palette.tint }]} numberOfLines={1}>
+            {meta}
+          </Text>
+        ) : null}
       </Pressable>
     );
   }
@@ -169,11 +174,15 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   tableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  tableTitle: { fontSize: 16, fontWeight: '700' },
+  tableTitle: { flex: 1, fontSize: 16, fontWeight: '700' },
+  tableMeta: { flexShrink: 0, fontSize: 13, fontWeight: '600' },
   primaryButton: {
     marginTop: 8,
     alignSelf: 'flex-start',

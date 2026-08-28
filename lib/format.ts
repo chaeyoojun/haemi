@@ -8,6 +8,20 @@ export function formatDateTime(iso: string): string {
   });
 }
 
+export function formatAuthorTime(author: string | undefined, iso: string): string {
+  const when = formatDateTime(iso);
+  const name = (author || '').trim();
+  return name ? `${name} · ${when}` : when;
+}
+
+export function withAuthor(author: string | undefined, rest?: string) {
+  const name = (author || '').trim();
+  if (name && rest) {
+    return `${name} · ${rest}`;
+  }
+  return name || rest || '';
+}
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('ko-KR', {
     year: 'numeric',

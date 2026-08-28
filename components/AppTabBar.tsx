@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
+import { confirmLogout, useAuth } from '@/lib/auth';
 import { useWideLayout } from '@/lib/layout';
 import type { AndroidSymbol, SFSymbol } from 'expo-symbols';
 
@@ -65,6 +66,7 @@ export function AppTabBar() {
   const insets = useSafeAreaInsets();
   const palette = Colors[useColorScheme()];
   const wide = useWideLayout();
+  const { displayName, logout } = useAuth();
 
   return (
     <View
@@ -105,6 +107,17 @@ export function AppTabBar() {
           </Pressable>
         );
       })}
+      {wide ? <View style={styles.spacer} /> : null}
+      {wide && displayName ? (
+        <Pressable
+          onPress={() => confirmLogout(logout)}
+          hitSlop={8}
+          accessibilityLabel={`${displayName} 로그아웃`}>
+          <Text style={[styles.nameWide, { color: palette.muted }]} numberOfLines={1}>
+            {displayName}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -150,5 +163,14 @@ const styles = StyleSheet.create({
   labelWide: {
     fontSize: 15,
     fontWeight: '700',
+  },
+  spacer: {
+    flex: 1,
+  },
+  nameWide: {
+    fontSize: 14,
+    fontWeight: '600',
+    maxWidth: 140,
+    cursor: 'pointer',
   },
 });

@@ -9,7 +9,8 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatPeriod } from '@/lib/format';
+import { formatAuthorTime, formatPeriod } from '@/lib/format';
+import { syncVoteEndAlerts } from '@/lib/notifications';
 import type { Vote } from '@/lib/types';
 
 function voteKey(id: string) {
@@ -165,6 +166,7 @@ export default function VoteDetailScreen() {
                               style: 'destructive',
                               onPress: async () => {
                                 await api.remove(`/api/votes/${vote.id}`);
+                                void syncVoteEndAlerts();
                                 router.replace('/votes');
                               },
                             },
@@ -179,12 +181,16 @@ export default function VoteDetailScreen() {
                 <Text style={[styles.body, { color: palette.muted }]}>{formatPeriod(vote.startsAt, vote.endsAt)}</Text>
               ) : null}
               <Text style={[styles.body, { color: palette.muted }]}>
+                {formatAuthorTime(vote.author, vote.createdAt)}
+              </Text>
+              <Text style={[styles.body, { color: palette.muted }]}>
                 총 {total}표
                 {notStarted ? ' · 시작 전' : ended ? ' · 마감' : allowMultiple ? ' · 여러 개 선택' : ''}
               </Text>
             </View>
             {vote.options.map((option) => {
               const selected = highlightIds.includes(option.id);
+              const voters = option.voters || [];
               return (
                 <Pressable
                   key={option.id}
@@ -197,8 +203,13 @@ export default function VoteDetailScreen() {
                       opacity: canVote || selected ? 1 : 0.7,
                     },
                   ]}>
-                  <Text style={[styles.optionLabel, { color: palette.text }]}>{option.label}</Text>
-                  <Text style={[styles.optionCount, { color: palette.tint }]}>{option.count}표</Text>
+                  <View style={styles.optionRow}>
+                    <Text style={[styles.optionLabel, { color: palette.text }]}>{option.label}</Text>
+                    <Text style={[styles.optionCount, { color: palette.tint }]}>{option.count}표</Text>
+                  </View>
+                  {voters.length > 0 ? (
+                    <Text style={[styles.optionVoters, { color: palette.muted }]}>{voters.join(' · ')}</Text>
+                  ) : null}
                 </Pressable>
               );
             })}
@@ -259,12 +270,16 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    gap: 6,
+  },
+  optionRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
   optionLabel: { fontSize: 16, fontWeight: '600', flex: 1, paddingRight: 12 },
   optionCount: { fontSize: 15, fontWeight: '700' },
+  optionVoters: { fontSize: 13, lineHeight: 20 },
   submit: { marginTop: 8, borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
   cancel: { marginTop: 8, borderRadius: 14, paddingVertical: 16, alignItems: 'center', borderWidth: 1 },

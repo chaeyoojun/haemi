@@ -8,14 +8,16 @@ import { PhotoAttach, toRepairFormData, type PickedPhoto } from '@/components/Ph
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
+import { useAuth } from '@/lib/auth';
 import { detailHref } from '@/lib/nav';
 import type { Repair } from '@/lib/types';
 
 export default function NewRepairScreen() {
   const router = useRouter();
   const palette = Colors[useColorScheme()];
+  const { displayName } = useAuth();
   const [title, setTitle] = useState('');
-  const [place, setPlace] = useState('');
+  const [place, setPlace] = useState(displayName);
   const [photos, setPhotos] = useState<PickedPhoto[]>([]);
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);

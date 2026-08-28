@@ -3,6 +3,7 @@ export type Spot = {
   title: string;
   place: string;
   description: string;
+  author?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -51,6 +52,7 @@ export type Repair = {
   title: string;
   place: string;
   description: string;
+  author?: string;
   status: RepairStatus;
   photos?: RepairPhoto[];
   createdAt: string;
@@ -61,6 +63,7 @@ export type Notice = {
   id: string;
   title: string;
   body: string;
+  author?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -70,12 +73,14 @@ export type VoteOption = {
   label: string;
   count: number;
   voteId: string;
+  voters?: string[];
 };
 
 export type Vote = {
   id: string;
   title: string;
   body: string;
+  author?: string;
   startsAt: string;
   endsAt: string;
   allowMultiple: boolean;
@@ -99,6 +104,7 @@ export type Model3d = {
   fileName: string;
   url: string;
   description: string;
+  author?: string;
   createdAt: string;
   updatedAt: string;
   files?: Model3dFile[];

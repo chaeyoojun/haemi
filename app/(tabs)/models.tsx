@@ -1,6 +1,7 @@
 import { useRouter } from 'expo-router';
 
 import { ItemCard, ResourceList } from '@/components/ResourceList';
+import { withAuthor } from '@/lib/format';
 import { detailHref } from '@/lib/nav';
 import type { Model3d } from '@/lib/types';
 import { useApiList } from '@/lib/useApiList';
@@ -24,6 +25,7 @@ export default function ModelsScreen() {
         <ItemCard
           key={model.id}
           title={model.title}
+          meta={withAuthor(model.author) || undefined}
           layout="table"
           onPress={() => router.push(detailHref('/model', model.id))}
         />

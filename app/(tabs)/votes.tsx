@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 
 import { ItemCard, ResourceList } from '@/components/ResourceList';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { detailHref } from '@/lib/nav';
+import { withAuthor } from '@/lib/format';
+import { syncVoteEndAlerts } from '@/lib/notifications';
 import type { Vote } from '@/lib/types';
 import { useApiList } from '@/lib/useApiList';
 
@@ -24,6 +26,13 @@ export default function VotesScreen() {
   const palette = Colors[useColorScheme()];
   const { items, ready, error, reload } = useApiList<Vote>('/api/votes');
   const [tab, setTab] = useState<VoteTab>('open');
+
+  useEffect(() => {
+    if (!ready || Platform.OS === 'web') {
+      return;
+    }
+    void syncVoteEndAlerts(items);
+  }, [items, ready]);
 
   const visible = items.filter((vote) => (tab === 'closed' ? isVoteClosed(vote) : !isVoteClosed(vote)));
 
@@ -57,7 +66,7 @@ export default function VotesScreen() {
           <ItemCard
             key={vote.id}
             title={vote.title}
-            meta={tab === 'closed' ? `마감 · ${total}표` : `${total}표`}
+            meta={withAuthor(vote.author, tab === 'closed' ? `마감 · ${total}표` : `${total}표`)}
             layout="row"
             onPress={() => router.push(detailHref('/vote', vote.id))}
           />

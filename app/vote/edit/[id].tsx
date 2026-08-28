@@ -9,6 +9,7 @@ import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { detailHref } from '@/lib/nav';
+import { syncVoteEndAlerts } from '@/lib/notifications';
 import type { Vote } from '@/lib/types';
 
 export default function EditVoteScreen() {
@@ -67,6 +68,7 @@ export default function EditVoteScreen() {
         startsAt: startsAt.toISOString(),
         endsAt: endsAt.toISOString(),
       });
+      void syncVoteEndAlerts();
       router.replace(detailHref('/vote', vote.id));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : '저장하지 못했습니다.');

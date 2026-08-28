@@ -115,6 +115,22 @@ function headerValue(req: Request, name: string) {
   return typeof value === 'string' ? value : '';
 }
 
+function decodeHeader(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
+function actorName(req: Request) {
+  return decodeHeader(headerValue(req, 'x-user-name')).replace(/\s+/g, ' ').trim().slice(0, 20);
+}
+
+function actorKey(req: Request) {
+  return decodeHeader(headerValue(req, 'x-user-key')).trim().slice(0, 64);
+}
+
 function requireAdmin(req: Request) {
   if (headerValue(req, 'x-admin-id') !== adminId || headerValue(req, 'x-admin-password') !== adminPassword) {
     throw new HttpError(401, '관리자만 할 수 있습니다.');
@@ -447,6 +463,7 @@ app.post(
         title: text(req.body.title, '스팟 이름'),
         place: text(req.body.place, '장소', false),
         description: stripMapShareUrls(text(req.body.description, '설명', false)),
+        author: actorName(req),
       },
     });
     res.status(201).json(spotPayload(spot));
@@ -611,6 +628,7 @@ app.post(
         title: text(body.title, '수리 제목'),
         place: text(body.place, '장소', false),
         description: text(body.description, '내용', false),
+        author: actorName(req),
         status: 'pending',
       },
     });
@@ -732,6 +750,7 @@ app.post(
       data: {
         title: text(req.body.title, '공지 제목'),
         body: text(req.body.body, '내용', false),
+        author: actorName(req) || '관리자',
       },
     });
     notifyNoticeCreated(notice.id, notice.title, notice.body).catch((error) => {
@@ -776,7 +795,52 @@ app.delete(
   })
 );
 
-const voteInclude = { options: { orderBy: { id: 'asc' as const } } };
+const voteInclude = {
+  options: {
+    orderBy: { id: 'asc' as const },
+    include: { ballots: { orderBy: { createdAt: 'asc' as const }, select: { name: true } } },
+  },
+};
+
+type VoteRow = {
+  id: string;
+  title: string;
+  body: string;
+  author: string;
+  startsAt: Date;
+  endsAt: Date;
+  allowMultiple: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  options: Array<{
+    id: string;
+    label: string;
+    count: number;
+    voteId: string;
+    ballots: Array<{ name: string }>;
+  }>;
+};
+
+function votePayload(vote: VoteRow) {
+  return {
+    id: vote.id,
+    title: vote.title,
+    body: vote.body,
+    author: vote.author,
+    startsAt: vote.startsAt,
+    endsAt: vote.endsAt,
+    allowMultiple: vote.allowMultiple,
+    createdAt: vote.createdAt,
+    updatedAt: vote.updatedAt,
+    options: vote.options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      count: option.count,
+      voteId: option.voteId,
+      voters: option.ballots.map((ballot) => ballot.name),
+    })),
+  };
+}
 
 app.get(
   '/api/votes',
@@ -785,7 +849,7 @@ app.get(
       orderBy: { createdAt: 'desc' },
       include: voteInclude,
     });
-    res.json(votes);
+    res.json(votes.map(votePayload));
   })
 );
 
@@ -813,6 +877,7 @@ app.post(
       data: {
         title: text(req.body.title, '투표 제목'),
         body: text(req.body.body, '설명', false),
+        author: actorName(req),
         startsAt,
         endsAt,
         allowMultiple: boolField(req.body.allowMultiple, true),
@@ -820,7 +885,7 @@ app.post(
       },
       include: voteInclude,
     });
-    res.status(201).json(vote);
+    res.status(201).json(votePayload(vote));
   })
 );
 
@@ -834,7 +899,7 @@ app.get(
     if (!vote) {
       throw new HttpError(404, '투표를 찾을 수 없습니다.');
     }
-    res.json(vote);
+    res.json(votePayload(vote));
   })
 );
 
@@ -890,7 +955,7 @@ app.patch(
       },
       include: voteInclude,
     });
-    res.json(vote);
+    res.json(votePayload(vote));
   })
 );
 
@@ -916,19 +981,44 @@ app.post(
     if (options.length !== optionIds.length) {
       throw new HttpError(404, '선택지를 찾을 수 없습니다.');
     }
-    await prisma.$transaction(
-      options.map((option) =>
-        prisma.voteOption.update({
-          where: { id: option.id },
-          data: { count: { increment: 1 } },
-        })
-      )
-    );
+    const name = actorName(req);
+    const voterKey = actorKey(req);
+    if (voterKey) {
+      if (!name) {
+        throw new HttpError(400, '이름을 입력해 주세요.');
+      }
+      const already = await prisma.voteBallot.findFirst({ where: { voteId, voterKey } });
+      if (already) {
+        throw new HttpError(409, '이미 투표했습니다.');
+      }
+    }
+    try {
+      await prisma.$transaction([
+        ...options.map((option) =>
+          prisma.voteOption.update({
+            where: { id: option.id },
+            data: { count: { increment: 1 } },
+          })
+        ),
+        ...(voterKey
+          ? options.map((option) =>
+              prisma.voteBallot.create({
+                data: { voteId, optionId: option.id, voterKey, name },
+              })
+            )
+          : []),
+      ]);
+    } catch (error) {
+      if (typeof error === 'object' && error && 'code' in error && error.code === 'P2002') {
+        throw new HttpError(409, '이미 투표했습니다.');
+      }
+      throw error;
+    }
     const updated = await prisma.vote.findUniqueOrThrow({
       where: { id: voteId },
       include: voteInclude,
     });
-    res.json(updated);
+    res.json(votePayload(updated));
   })
 );
 
@@ -941,29 +1031,34 @@ app.post(
       throw new HttpError(404, '투표를 찾을 수 없습니다.');
     }
     assertVoteOpen(vote);
-    const optionIds = optionIdsFromBody(req.body);
+    const voterKey = actorKey(req);
+    const ballots = voterKey
+      ? await prisma.voteBallot.findMany({ where: { voteId, voterKey } })
+      : [];
+    const optionIds = ballots.length > 0 ? ballots.map((ballot) => ballot.optionId) : optionIdsFromBody(req.body);
     if (optionIds.length === 0) {
       throw new HttpError(400, '취소할 선택지가 없습니다.');
     }
     const options = await prisma.voteOption.findMany({
       where: { id: { in: optionIds }, voteId },
     });
-    if (options.length !== optionIds.length) {
+    if (ballots.length === 0 && options.length !== optionIds.length) {
       throw new HttpError(404, '선택지를 찾을 수 없습니다.');
     }
-    await prisma.$transaction(
-      options.map((option) =>
+    await prisma.$transaction([
+      ...(voterKey ? [prisma.voteBallot.deleteMany({ where: { voteId, voterKey } })] : []),
+      ...options.map((option) =>
         prisma.voteOption.updateMany({
           where: { id: option.id, count: { gt: 0 } },
           data: { count: { decrement: 1 } },
         })
-      )
-    );
+      ),
+    ]);
     const updated = await prisma.vote.findUniqueOrThrow({
       where: { id: voteId },
       include: voteInclude,
     });
-    res.json(updated);
+    res.json(votePayload(updated));
   })
 );
 
@@ -985,6 +1080,7 @@ type ModelRow = {
   fileName: string;
   url: string;
   description: string;
+  author: string;
   createdAt: Date;
   updatedAt: Date;
   files: Array<{ id: string; fileName: string; format: string; createdAt: Date }>;
@@ -1106,6 +1202,7 @@ app.post(
         fileName: firstName,
         url: text(body.url, '파일 주소', false),
         description: text(body.description, '설명', false),
+        author: actorName(req),
       },
     });
     try {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -21,13 +21,29 @@ const hero = require('../assets/images/login-hero.png');
 
 export function LoginScreen() {
   const palette = Colors[useColorScheme()];
-  const { enterAsUser, loginAdmin } = useAuth();
+  const { enterAsUser, loginAdmin, displayName } = useAuth();
   const { width: windowWidth } = useWindowDimensions();
   const wide = useWideLayout();
   const heroSize = Math.min(wide ? 280 : windowWidth - 56, 360);
+  const [name, setName] = useState(displayName);
   const [adminForm, setAdminForm] = useState(false);
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (displayName) {
+      setName(displayName);
+    }
+  }, [displayName]);
+
+  const onUserLogin = () => {
+    setError('');
+    try {
+      enterAsUser(name);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '로그인하지 못했습니다.');
+    }
+  };
 
   const onAdminLogin = () => {
     setError('');
@@ -81,8 +97,21 @@ export function LoginScreen() {
           </View>
         ) : (
           <View style={styles.form}>
+            <Field label="이름">
+              <Input
+                value={name}
+                onChangeText={setName}
+                placeholder="이 기기에서 쓸 이름"
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={20}
+                returnKeyType="done"
+                onSubmitEditing={onUserLogin}
+              />
+            </Field>
+            {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
             <Pressable
-              onPress={enterAsUser}
+              onPress={onUserLogin}
               style={[styles.primaryButton, { backgroundColor: palette.tint }]}>
               <Text style={styles.primaryText}>사용자</Text>
             </Pressable>

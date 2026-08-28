@@ -58,7 +58,7 @@ export default function RootLayout() {
 }
 
 function SignedInApp() {
-  const { role } = useAuth();
+  const { ready, role } = useAuth();
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -77,10 +77,16 @@ function SignedInApp() {
       return;
     }
     import('@/lib/notifications')
-      .then((mod) => mod.registerPushToken())
+      .then((mod) => {
+        void mod.registerPushToken();
+        void mod.syncVoteEndAlerts();
+      })
       .catch(() => undefined);
   }, [role]);
 
+  if (!ready) {
+    return null;
+  }
   if (!role) {
     return <LoginScreen />;
   }

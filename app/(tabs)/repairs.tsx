@@ -7,6 +7,7 @@ import { ResourceList } from '@/components/ResourceList';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { detailHref } from '@/lib/nav';
+import { withAuthor } from '@/lib/format';
 import { repairStatusLabel, type Repair, type RepairStatus } from '@/lib/types';
 import { useApiList } from '@/lib/useApiList';
 
@@ -52,7 +53,7 @@ function RepairCard({ repair, onOpen }: { repair: Repair; onOpen: () => void }) 
         {repair.title}
       </Text>
       <Text style={[styles.status, { color: palette.tint }]} numberOfLines={1}>
-        {status}
+        {withAuthor(repair.author, status) || status}
       </Text>
     </Pressable>
   );

@@ -14,12 +14,22 @@ type ApiError = {
 
 let adminId = '';
 let adminPassword = '';
+let userName = '';
+let userKey = '';
 
 function authHeaders(): Record<string, string> {
-  if (!adminId || !adminPassword) {
-    return {};
+  const headers: Record<string, string> = {};
+  if (adminId && adminPassword) {
+    headers['X-Admin-Id'] = adminId;
+    headers['X-Admin-Password'] = adminPassword;
   }
-  return { 'X-Admin-Id': adminId, 'X-Admin-Password': adminPassword };
+  if (userName) {
+    headers['X-User-Name'] = encodeURIComponent(userName);
+  }
+  if (userKey) {
+    headers['X-User-Key'] = encodeURIComponent(userKey);
+  }
+  return headers;
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -63,6 +73,14 @@ export const api = {
   clearAdminAuth: () => {
     adminId = '';
     adminPassword = '';
+  },
+  setUser: (name: string, key: string) => {
+    userName = name;
+    userKey = key;
+  },
+  clearUser: () => {
+    userName = '';
+    userKey = '';
   },
   list: <T>(path: string) => request<T[]>(path),
   get: <T>(path: string) => request<T>(path),

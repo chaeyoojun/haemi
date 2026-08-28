@@ -10,7 +10,7 @@ import Colors from '@/constants/Colors';
 import { api, fileUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { appendLocalFile } from '@/lib/formData';
-import { formatDateTime } from '@/lib/format';
+import { formatAuthorTime, formatDateTime } from '@/lib/format';
 import type { Model3d, Model3dFile } from '@/lib/types';
 
 export default function ModelDetailScreen() {
@@ -121,6 +121,7 @@ export default function ModelDetailScreen() {
               </View>
               {model.format ? <Text style={[styles.meta, { color: palette.tint }]}>{model.format}</Text> : null}
               {model.description ? <Text style={[styles.body, { color: palette.text }]}>{model.description}</Text> : null}
+              <Text style={[styles.body, { color: palette.muted }]}>{formatAuthorTime(model.author, model.createdAt)}</Text>
             </View>
 
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>

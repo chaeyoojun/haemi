@@ -25,6 +25,7 @@ export function Input({
   autoCorrect,
   returnKeyType,
   onSubmitEditing,
+  maxLength,
 }: {
   value: string;
   onChangeText: (value: string) => void;
@@ -36,6 +37,7 @@ export function Input({
   autoCorrect?: boolean;
   returnKeyType?: 'done' | 'go' | 'next' | 'search' | 'send';
   onSubmitEditing?: () => void;
+  maxLength?: number;
 }) {
   const palette = Colors[useColorScheme()];
   return (
@@ -50,6 +52,7 @@ export function Input({
       autoCorrect={autoCorrect}
       returnKeyType={returnKeyType}
       onSubmitEditing={onSubmitEditing}
+      maxLength={maxLength}
       blurOnSubmit
       style={[
         styles.input,

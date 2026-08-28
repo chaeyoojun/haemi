@@ -8,7 +8,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api, fileUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDateTime } from '@/lib/format';
+import { formatAuthorTime } from '@/lib/format';
 import { repairStatusLabel, type Repair, type RepairStatus } from '@/lib/types';
 
 export default function RepairDetailScreen() {
@@ -96,7 +96,7 @@ export default function RepairDetailScreen() {
               </View>
             ) : null}
             {repair.description ? <Text style={[styles.body, { color: palette.text }]}>{repair.description}</Text> : null}
-            <Text style={[styles.body, { color: palette.muted }]}>{formatDateTime(repair.createdAt)}</Text>
+            <Text style={[styles.body, { color: palette.muted }]}>{formatAuthorTime(repair.author, repair.createdAt)}</Text>
           </View>
         )}
       </RefreshableScroll>

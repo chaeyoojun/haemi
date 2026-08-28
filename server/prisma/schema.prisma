@@ -12,6 +12,7 @@ model Spot {
   title       String
   place       String   @default("")
   description String   @default("")
+  author      String   @default("")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -21,6 +22,7 @@ model Repair {
   title       String
   place       String        @default("")
   description String        @default("")
+  author      String        @default("")
   status      String        @default("pending")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -42,6 +44,7 @@ model Notice {
   id        String   @id @default(cuid())
   title     String
   body      String   @default("")
+  author    String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -50,22 +53,40 @@ model Vote {
   id            String       @id @default(cuid())
   title         String
   body          String       @default("")
+  author        String       @default("")
   startsAt      DateTime     @default(now())
   endsAt        DateTime
   allowMultiple Boolean      @default(true)
   createdAt     DateTime     @default(now())
   updatedAt     DateTime     @updatedAt
   options       VoteOption[]
+  ballots       VoteBallot[]
 }
 
 model VoteOption {
-  id     String @id @default(cuid())
-  label  String
-  count  Int    @default(0)
-  voteId String
-  vote   Vote   @relation(fields: [voteId], references: [id], onDelete: Cascade)
+  id      String       @id @default(cuid())
+  label   String
+  count   Int          @default(0)
+  voteId  String
+  vote    Vote         @relation(fields: [voteId], references: [id], onDelete: Cascade)
+  ballots VoteBallot[]
 
   @@index([voteId])
+}
+
+model VoteBallot {
+  id        String     @id @default(cuid())
+  voteId    String
+  optionId  String
+  voterKey  String
+  name      String
+  createdAt DateTime   @default(now())
+  vote      Vote       @relation(fields: [voteId], references: [id], onDelete: Cascade)
+  option    VoteOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([voteId, optionId, voterKey])
+  @@index([voteId, voterKey])
+  @@index([optionId])
 }
 
 model Model3d {
@@ -75,6 +96,7 @@ model Model3d {
   fileName    String        @default("")
   url         String        @default("")
   description String        @default("")
+  author      String        @default("")
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
   files       Model3dFile[]

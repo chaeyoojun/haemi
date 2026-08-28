@@ -8,7 +8,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { formatDateTime } from '@/lib/format';
+import { formatAuthorTime } from '@/lib/format';
 import type { Notice } from '@/lib/types';
 
 export default function NoticeDetailScreen() {
@@ -73,7 +73,7 @@ export default function NoticeDetailScreen() {
                 />
               ) : null}
             </View>
-            <Text style={[styles.body, { color: palette.muted }]}>{formatDateTime(notice.createdAt)}</Text>
+            <Text style={[styles.body, { color: palette.muted }]}>{formatAuthorTime(notice.author, notice.createdAt)}</Text>
             {notice.body ? <Text style={[styles.body, { color: palette.text }]}>{notice.body}</Text> : null}
           </View>
         )}

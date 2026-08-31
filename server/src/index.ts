@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express, { type NextFunction, type Request, type Response } from 'express';
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -143,6 +144,62 @@ function adminGuard(req: Request, _res: Response, next: NextFunction) {
     next();
   } catch (error) {
     next(error);
+  }
+}
+
+function isAdminRequest(req: Request) {
+  return headerValue(req, 'x-admin-id') === adminId && headerValue(req, 'x-admin-password') === adminPassword;
+}
+
+function requestPin(req: Request) {
+  const fromHeader = headerValue(req, 'x-model-pin').trim();
+  if (fromHeader) {
+    return fromHeader;
+  }
+  const body = req.body ?? {};
+  return typeof body.pin === 'string' ? body.pin.trim() : '';
+}
+
+function parsePin(value: string) {
+  if (!/^\d{4}$/.test(value)) {
+    throw new HttpError(400, '비밀번호는 숫자 4자리여야 합니다.');
+  }
+  return value;
+}
+
+function hashPin(pin: string) {
+  const salt = randomBytes(16).toString('hex');
+  const hash = createHash('sha256').update(`${salt}:${pin}`).digest('hex');
+  return `${salt}:${hash}`;
+}
+
+function pinMatches(pin: string, stored: string) {
+  const sep = stored.indexOf(':');
+  if (sep < 0 || !pin || !stored) {
+    return false;
+  }
+  const salt = stored.slice(0, sep);
+  const hash = stored.slice(sep + 1);
+  const next = createHash('sha256').update(`${salt}:${pin}`).digest('hex');
+  if (hash.length !== next.length) {
+    return false;
+  }
+  try {
+    return timingSafeEqual(Buffer.from(hash), Buffer.from(next));
+  } catch {
+    return false;
+  }
+}
+
+function requireModelWrite(req: Request, model: { pinHash: string }) {
+  if (isAdminRequest(req)) {
+    return;
+  }
+  if (!model.pinHash) {
+    throw new HttpError(403, '이 항목은 비밀번호가 없어 관리자만 수정할 수 있습니다.');
+  }
+  if (!pinMatches(parsePin(requestPin(req)), model.pinHash)) {
+    throw new HttpError(403, '비밀번호가 올바르지 않습니다.');
   }
 }
 
@@ -1081,14 +1138,16 @@ type ModelRow = {
   url: string;
   description: string;
   author: string;
+  pinHash: string;
   createdAt: Date;
   updatedAt: Date;
   files: Array<{ id: string; fileName: string; format: string; createdAt: Date }>;
 };
 
 function modelPayload(model: ModelRow) {
+  const { pinHash: _pinHash, ...rest } = model;
   return {
-    ...model,
+    ...rest,
     files: model.files.map((file) => ({
       id: file.id,
       fileName: file.fileName,
@@ -1195,6 +1254,7 @@ app.post(
     const body = req.body ?? {};
     const uploaded = requestFiles(req);
     const firstName = uploaded[0]?.originalname || text(body.fileName, '파일 이름', false);
+    const pin = parsePin(requestPin(req));
     const model = await prisma.model3d.create({
       data: {
         title: text(body.title, '이름'),
@@ -1203,6 +1263,7 @@ app.post(
         url: text(body.url, '파일 주소', false),
         description: text(body.description, '설명', false),
         author: actorName(req),
+        pinHash: hashPin(pin),
       },
     });
     try {
@@ -1285,6 +1346,7 @@ app.post(
     if (!model) {
       throw new HttpError(404, '3D 파일을 찾을 수 없습니다.');
     }
+    requireModelWrite(req, model);
     const uploaded = requestFiles(req);
     if (uploaded.length === 0) {
       throw new HttpError(400, '파일을 선택해 주세요.');
@@ -1300,10 +1362,14 @@ app.post(
 
 app.delete(
   '/api/models/:id/files/:fileId',
-  adminGuard,
   asyncHandler(async (req, res) => {
+    const model = await prisma.model3d.findUnique({ where: { id: idParam(req) } });
+    if (!model) {
+      throw new HttpError(404, '3D 파일을 찾을 수 없습니다.');
+    }
+    requireModelWrite(req, model);
     const file = await prisma.model3dFile.findFirst({
-      where: { id: String(req.params.fileId), modelId: idParam(req) },
+      where: { id: String(req.params.fileId), modelId: model.id },
     });
     if (!file) {
       throw new HttpError(404, '저장된 파일을 찾을 수 없습니다.');
@@ -1329,21 +1395,37 @@ app.get(
   })
 );
 
+app.post(
+  '/api/models/:id/unlock',
+  asyncHandler(async (req, res) => {
+    const model = await prisma.model3d.findUnique({ where: { id: idParam(req) } });
+    if (!model) {
+      throw new HttpError(404, '3D 파일을 찾을 수 없습니다.');
+    }
+    requireModelWrite(req, model);
+    res.json({ ok: true });
+  })
+);
+
 app.patch(
   '/api/models/:id',
-  adminGuard,
   upload.fields([
     { name: 'file', maxCount: 1 },
     { name: 'files', maxCount: 30 },
   ]),
   asyncHandler(async (req, res) => {
+    const model = await prisma.model3d.findUnique({ where: { id: idParam(req) } });
+    if (!model) {
+      throw new HttpError(404, '3D 파일을 찾을 수 없습니다.');
+    }
+    requireModelWrite(req, model);
     const uploaded = requestFiles(req);
     if (uploaded.length > 0) {
-      await saveModelFiles(idParam(req), uploaded);
+      await saveModelFiles(model.id, uploaded);
     }
     const body = req.body ?? {};
     await prisma.model3d.update({
-      where: { id: idParam(req) },
+      where: { id: model.id },
       data: {
         ...(body.title != null ? { title: text(body.title, '이름') } : {}),
         ...(body.format != null ? { format: text(body.format, '형식', false) } : {}),
@@ -1353,10 +1435,10 @@ app.patch(
       },
     });
     if (uploaded.length > 0) {
-      await syncModelFileMeta(idParam(req));
+      await syncModelFileMeta(model.id);
     }
     const saved = await prisma.model3d.findUniqueOrThrow({
-      where: { id: idParam(req) },
+      where: { id: model.id },
       include: modelFileInclude,
     });
     res.json(modelPayload(saved));
@@ -1365,9 +1447,13 @@ app.patch(
 
 app.delete(
   '/api/models/:id',
-  adminGuard,
   asyncHandler(async (req, res) => {
     const id = idParam(req);
+    const model = await prisma.model3d.findUnique({ where: { id } });
+    if (!model) {
+      throw new HttpError(404, '3D 파일을 찾을 수 없습니다.');
+    }
+    requireModelWrite(req, model);
     const files = await prisma.model3dFile.findMany({ where: { modelId: id } });
     for (const file of files) {
       removeUploadsFor(file.id);

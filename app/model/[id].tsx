@@ -4,6 +4,7 @@ import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } 
 
 import { InlineMoreActions } from '@/components/InlineMoreActions';
 import { pickModelFiles } from '@/components/ModelForm';
+import { PinPrompt } from '@/components/PinPrompt';
 import { RefreshableScroll } from '@/components/RefreshableScroll';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
@@ -11,6 +12,7 @@ import { api, fileUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { appendLocalFile } from '@/lib/formData';
 import { formatAuthorTime, formatDateTime } from '@/lib/format';
+import { forgetModelPin, modelPin, modelPinHeaders, unlockModel } from '@/lib/modelPin';
 import type { Model3d, Model3dFile } from '@/lib/types';
 
 export default function ModelDetailScreen() {
@@ -22,6 +24,10 @@ export default function ModelDetailScreen() {
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [pinTitle, setPinTitle] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [unlocking, setUnlocking] = useState(false);
+  const [pendingAction, setPendingAction] = useState<((pin: string) => void | Promise<void>) | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -41,44 +47,66 @@ export default function ModelDetailScreen() {
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   );
 
+  const withPin = (title: string, action: (pin: string) => void | Promise<void>) => {
+    if (!id) return;
+    if (isAdmin) {
+      void action('');
+      return;
+    }
+    const stored = modelPin(id);
+    if (stored) {
+      void action(stored);
+      return;
+    }
+    setPinTitle(title);
+    setPinError('');
+    setPendingAction(() => action);
+  };
+
   const addFiles = async () => {
     if (!id) return;
-    setAdding(true);
-    setError('');
-    try {
-      const picked = await pickModelFiles(true);
-      if (picked.length === 0) {
-        return;
-      }
-      const form = new FormData();
-      for (const file of picked) {
-        appendLocalFile(form, 'files', file);
-      }
-      setModel(await api.upload<Model3d>(`/api/models/${id}/files`, form));
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : '파일을 올리지 못했습니다.');
-    } finally {
-      setAdding(false);
+    const picked = await pickModelFiles(true);
+    if (picked.length === 0) {
+      return;
     }
+    withPin('파일 추가', async () => {
+      setAdding(true);
+      setError('');
+      try {
+        const form = new FormData();
+        for (const file of picked) {
+          appendLocalFile(form, 'files', file);
+        }
+        setModel(await api.upload<Model3d>(`/api/models/${id}/files`, form, 'POST', modelPinHeaders(id)));
+      } catch (caught) {
+        forgetModelPin(id);
+        setError(caught instanceof Error ? caught.message : '파일을 올리지 못했습니다.');
+      } finally {
+        setAdding(false);
+      }
+    });
   };
 
   const removeFile = (file: Model3dFile) => {
     if (!id) return;
-    Alert.alert('이 파일을 삭제할까요?', file.fileName, [
-      { text: '취소', style: 'cancel' },
-      {
-        text: '삭제',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await api.remove(`/api/models/${id}/files/${file.id}`);
-            await load();
-          } catch (caught) {
-            setError(caught instanceof Error ? caught.message : '삭제하지 못했습니다.');
-          }
+    withPin('파일 삭제', () => {
+      Alert.alert('이 파일을 삭제할까요?', file.fileName, [
+        { text: '취소', style: 'cancel' },
+        {
+          text: '삭제',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.remove(`/api/models/${id}/files/${file.id}`, modelPinHeaders(id));
+              await load();
+            } catch (caught) {
+              forgetModelPin(id);
+              setError(caught instanceof Error ? caught.message : '삭제하지 못했습니다.');
+            }
+          },
         },
-      },
-    ]);
+      ]);
+    });
   };
 
   return (
@@ -93,31 +121,42 @@ export default function ModelDetailScreen() {
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
               <View style={styles.header}>
                 <Text style={[styles.title, { color: palette.text }]}>{model.title}</Text>
-                {isAdmin ? (
-                  <InlineMoreActions
-                    open={menuOpen}
-                    onToggle={() => setMenuOpen((open) => !open)}
-                    actions={[
-                      { label: '수정', onPress: () => router.push(`/model/edit/${model.id}`) },
-                      {
-                        label: '삭제',
-                        danger: true,
-                        onPress: () =>
+                <InlineMoreActions
+                  open={menuOpen}
+                  onToggle={() => setMenuOpen((open) => !open)}
+                  actions={[
+                    {
+                      label: '수정',
+                      onPress: () =>
+                        withPin('수정', () => {
+                          router.push(`/model/edit/${model.id}`);
+                        }),
+                    },
+                    {
+                      label: '삭제',
+                      danger: true,
+                      onPress: () =>
+                        withPin('삭제', () => {
                           Alert.alert('3D 파일을 삭제할까요?', model.title, [
                             { text: '취소', style: 'cancel' },
                             {
                               text: '삭제',
                               style: 'destructive',
                               onPress: async () => {
-                                await api.remove(`/api/models/${model.id}`);
-                                router.replace('/models');
+                                try {
+                                  await api.remove(`/api/models/${model.id}`, modelPinHeaders(id || ''));
+                                  router.replace('/models');
+                                } catch (caught) {
+                                  forgetModelPin(id || '');
+                                  setError(caught instanceof Error ? caught.message : '삭제하지 못했습니다.');
+                                }
                               },
                             },
-                          ]),
-                      },
-                    ]}
-                  />
-                ) : null}
+                          ]);
+                        }),
+                    },
+                  ]}
+                />
               </View>
               {model.format ? <Text style={[styles.meta, { color: palette.tint }]}>{model.format}</Text> : null}
               {model.description ? <Text style={[styles.body, { color: palette.text }]}>{model.description}</Text> : null}
@@ -152,13 +191,11 @@ export default function ModelDetailScreen() {
                         style={[styles.smallBtn, { backgroundColor: palette.tint }]}>
                         <Text style={styles.smallBtnText}>받기</Text>
                       </Pressable>
-                      {isAdmin ? (
-                        <Pressable
-                          onPress={() => removeFile(file)}
-                          style={[styles.smallBtn, { borderColor: palette.border, borderWidth: 1 }]}>
-                          <Text style={[styles.smallBtnGhost, { color: palette.muted }]}>삭제</Text>
-                        </Pressable>
-                      ) : null}
+                      <Pressable
+                        onPress={() => removeFile(file)}
+                        style={[styles.smallBtn, { borderColor: palette.border, borderWidth: 1 }]}>
+                        <Text style={[styles.smallBtnGhost, { color: palette.muted }]}>삭제</Text>
+                      </Pressable>
                     </View>
                   </View>
                 ))
@@ -175,6 +212,34 @@ export default function ModelDetailScreen() {
           </>
         )}
       </RefreshableScroll>
+      <PinPrompt
+        visible={pendingAction != null}
+        title={pinTitle}
+        error={pinError}
+        submitting={unlocking}
+        onCancel={() => {
+          setPendingAction(null);
+          setPinError('');
+        }}
+        onSubmit={async (pin) => {
+          if (!id || !pendingAction) {
+            return;
+          }
+          setUnlocking(true);
+          setPinError('');
+          try {
+            await unlockModel(id, pin, isAdmin);
+            const action = pendingAction;
+            setPendingAction(null);
+            await action(pin);
+          } catch (caught) {
+            forgetModelPin(id);
+            setPinError(caught instanceof Error ? caught.message : '비밀번호가 올바르지 않습니다.');
+          } finally {
+            setUnlocking(false);
+          }
+        }}
+      />
     </View>
   );
 }

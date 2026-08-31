@@ -20,6 +20,7 @@ export type ModelFormValues = {
   fileName: string;
   url: string;
   description: string;
+  pin?: string;
 };
 
 export function fileStem(name: string) {
@@ -55,6 +56,7 @@ export function ModelForm({
   files,
   onFiles,
   allowMultiple = false,
+  requirePin = false,
   error,
   saving,
   submitLabel,
@@ -65,6 +67,7 @@ export function ModelForm({
   files: PickedFile[];
   onFiles: (files: PickedFile[]) => void;
   allowMultiple?: boolean;
+  requirePin?: boolean;
   error: string;
   saving: boolean;
   submitLabel: string;
@@ -152,6 +155,21 @@ export function ModelForm({
           multiline
         />
       </Field>
+      {requirePin ? (
+        <Field label="비밀번호">
+          <Input
+            value={values.pin || ''}
+            onChangeText={(value) => set('pin', value.replace(/\D/g, '').slice(0, 4))}
+            placeholder="숫자 4자리"
+            secureTextEntry
+            keyboardType="number-pad"
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={4}
+          />
+          <Text style={[styles.hint, { color: palette.muted }]}>나중에 수정하거나 삭제할 때 필요합니다.</Text>
+        </Field>
+      ) : null}
       {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
       <Pressable
         onPress={onSubmit}
@@ -170,6 +188,9 @@ export function toModelFormData(values: ModelFormValues, files: PickedFile[]) {
   form.append('fileName', values.fileName);
   form.append('url', values.url);
   form.append('description', values.description);
+  if (values.pin) {
+    form.append('pin', values.pin);
+  }
   for (const file of files) {
     appendLocalFile(form, 'files', file);
   }

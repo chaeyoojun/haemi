@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Model3d" ADD COLUMN "pinHash" TEXT NOT NULL DEFAULT '';

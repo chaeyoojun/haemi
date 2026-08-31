@@ -26,6 +26,8 @@ export function Input({
   returnKeyType,
   onSubmitEditing,
   maxLength,
+  keyboardType,
+  autoFocus,
 }: {
   value: string;
   onChangeText: (value: string) => void;
@@ -38,6 +40,8 @@ export function Input({
   returnKeyType?: 'done' | 'go' | 'next' | 'search' | 'send';
   onSubmitEditing?: () => void;
   maxLength?: number;
+  keyboardType?: 'default' | 'number-pad' | 'numeric' | 'email-address' | 'phone-pad';
+  autoFocus?: boolean;
 }) {
   const palette = Colors[useColorScheme()];
   return (
@@ -53,6 +57,8 @@ export function Input({
       returnKeyType={returnKeyType}
       onSubmitEditing={onSubmitEditing}
       maxLength={maxLength}
+      keyboardType={keyboardType}
+      autoFocus={autoFocus}
       blurOnSubmit
       style={[
         styles.input,

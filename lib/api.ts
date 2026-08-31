@@ -88,7 +88,12 @@ export const api = {
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
-  remove: (path: string) => request<void>(path, { method: 'DELETE' }),
-  upload: <T>(path: string, body: FormData, method: 'POST' | 'PATCH' = 'POST') =>
-    request<T>(path, { method, body }),
+  remove: (path: string, extraHeaders?: Record<string, string>) =>
+    request<void>(path, { method: 'DELETE', headers: extraHeaders }),
+  upload: <T>(
+    path: string,
+    body: FormData,
+    method: 'POST' | 'PATCH' = 'POST',
+    extraHeaders?: Record<string, string>
+  ) => request<T>(path, { method, body, headers: extraHeaders }),
 };

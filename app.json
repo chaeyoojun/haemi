@@ -2,7 +2,7 @@
   "expo": {
     "name": "HMFPV",
     "slug": "haemi",
-    "version": "1.0.10",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "haemi",
@@ -10,7 +10,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.haemi.app",
-      "buildNumber": "13",
+      "buildNumber": "14",
       "config": {
         "usesNonExemptEncryption": false
       },
@@ -22,7 +22,7 @@
     },
     "android": {
       "package": "com.haemi.app",
-      "versionCode": 13,
+      "versionCode": 14,
       "permissions": [
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",

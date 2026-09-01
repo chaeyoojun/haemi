@@ -23,12 +23,17 @@ export function isModelPin(value: string) {
   return /^\d{4}$/.test(value);
 }
 
-export async function unlockModel(id: string, pin: string, isAdmin: boolean) {
-  if (isAdmin) {
-    return;
-  }
+export async function unlockOrSetModelPin(id: string, pin: string, isAdmin: boolean, hasPin: boolean) {
   if (!isModelPin(pin)) {
     throw new Error('비밀번호는 숫자 4자리여야 합니다.');
+  }
+  if (!hasPin) {
+    await api.create(`/api/models/${id}/pin`, { pin });
+    rememberModelPin(id, pin);
+    return;
+  }
+  if (isAdmin) {
+    return;
   }
   await api.create(`/api/models/${id}/unlock`, { pin });
   rememberModelPin(id, pin);

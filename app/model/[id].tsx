@@ -12,14 +12,14 @@ import { api, fileUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { appendLocalFile } from '@/lib/formData';
 import { formatAuthorTime, formatDateTime } from '@/lib/format';
-import { forgetModelPin, modelPin, modelPinHeaders, unlockModel } from '@/lib/modelPin';
+import { forgetModelPin, modelPin, modelPinHeaders, unlockOrSetModelPin } from '@/lib/modelPin';
 import type { Model3d, Model3dFile } from '@/lib/types';
 
 export default function ModelDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const palette = Colors[useColorScheme()];
-  const { isAdmin } = useAuth();
+  const { isAdmin, displayName } = useAuth();
   const [model, setModel] = useState<Model3d | null>(null);
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -48,17 +48,17 @@ export default function ModelDetailScreen() {
   );
 
   const withPin = (title: string, action: (pin: string) => void | Promise<void>) => {
-    if (!id) return;
-    if (isAdmin) {
+    if (!id || !model) return;
+    if (isAdmin && model.hasPin) {
       void action('');
       return;
     }
     const stored = modelPin(id);
-    if (stored) {
+    if (stored && model.hasPin) {
       void action(stored);
       return;
     }
-    setPinTitle(title);
+    setPinTitle(model.hasPin ? title : '비밀번호 정하기');
     setPinError('');
     setPendingAction(() => action);
   };
@@ -161,6 +161,13 @@ export default function ModelDetailScreen() {
               {model.format ? <Text style={[styles.meta, { color: palette.tint }]}>{model.format}</Text> : null}
               {model.description ? <Text style={[styles.body, { color: palette.text }]}>{model.description}</Text> : null}
               <Text style={[styles.body, { color: palette.muted }]}>{formatAuthorTime(model.author, model.createdAt)}</Text>
+              {!model.hasPin ? (
+                <Text style={[styles.body, { color: palette.muted }]}>
+                  {displayName && displayName === (model.author || '').trim()
+                    ? '예전 글이라 비밀번호가 없습니다. 수정할 때 숫자 4자리를 새로 정하면 됩니다.'
+                    : '예전 글이라 비밀번호가 없습니다. 작성자나 관리자가 수정할 때 숫자 4자리를 정할 수 있습니다.'}
+                </Text>
+              ) : null}
             </View>
 
             <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
@@ -215,6 +222,12 @@ export default function ModelDetailScreen() {
       <PinPrompt
         visible={pendingAction != null}
         title={pinTitle}
+        message={
+          model?.hasPin
+            ? '등록할 때 넣은 숫자 4자리 비밀번호를 입력해 주세요.'
+            : '이 글은 예전에 올려서 비밀번호가 없습니다. 앞으로 쓸 숫자 4자리를 정해 주세요.'
+        }
+        submitLabel={model?.hasPin ? '확인' : '정하기'}
         error={pinError}
         submitting={unlocking}
         onCancel={() => {
@@ -228,9 +241,12 @@ export default function ModelDetailScreen() {
           setUnlocking(true);
           setPinError('');
           try {
-            await unlockModel(id, pin, isAdmin);
+            await unlockOrSetModelPin(id, pin, isAdmin, Boolean(model?.hasPin));
             const action = pendingAction;
             setPendingAction(null);
+            if (model && !model.hasPin) {
+              setModel({ ...model, hasPin: true });
+            }
             await action(pin);
           } catch (caught) {
             forgetModelPin(id);

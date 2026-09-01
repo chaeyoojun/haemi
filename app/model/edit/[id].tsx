@@ -9,7 +9,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
-import { forgetModelPin, modelPin, modelPinHeaders, unlockModel } from '@/lib/modelPin';
+import { forgetModelPin, modelPin, modelPinHeaders, unlockOrSetModelPin } from '@/lib/modelPin';
 import { detailHref } from '@/lib/nav';
 import type { Model3d } from '@/lib/types';
 
@@ -19,10 +19,12 @@ export default function EditModelScreen() {
   const { isAdmin } = useAuth();
   const palette = Colors[useColorScheme()];
   const [values, setValues] = useState<ModelFormValues | null>(null);
+  const [hasPin, setHasPin] = useState(true);
   const [file, setFile] = useState<PickedFile | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [unlocked, setUnlocked] = useState(() => Boolean(isAdmin || (id && modelPin(id))));
+  const [ready, setReady] = useState(false);
+  const [unlocked, setUnlocked] = useState(false);
   const [pinError, setPinError] = useState('');
   const [unlocking, setUnlocking] = useState(false);
 
@@ -30,20 +32,43 @@ export default function EditModelScreen() {
     if (!id) return;
     api
       .get<Model3d>(`/api/models/${id}`)
-      .then((model) =>
+      .then((model) => {
         setValues({
           title: model.title,
           format: model.format,
           fileName: model.fileName,
           url: model.url,
           description: model.description,
-        })
-      )
-      .catch((caught) => setError(caught instanceof Error ? caught.message : '불러오지 못했습니다.'));
-  }, [id]);
+        });
+        const pinned = Boolean(model.hasPin);
+        setHasPin(pinned);
+        setUnlocked(Boolean((isAdmin || modelPin(id)) && pinned));
+        setReady(true);
+      })
+      .catch((caught) => {
+        setError(caught instanceof Error ? caught.message : '불러오지 못했습니다.');
+        setReady(true);
+      });
+  }, [id, isAdmin]);
 
   if (!id) {
     return null;
+  }
+
+  if (!ready) {
+    return (
+      <View style={[styles.center, { backgroundColor: palette.background }]}>
+        <ActivityIndicator color={palette.tint} />
+      </View>
+    );
+  }
+
+  if (error && !values) {
+    return (
+      <View style={[styles.center, { backgroundColor: palette.background }]}>
+        <Text style={{ color: palette.danger }}>{error}</Text>
+      </View>
+    );
   }
 
   if (!unlocked) {
@@ -51,7 +76,13 @@ export default function EditModelScreen() {
       <View style={[styles.center, { backgroundColor: palette.background }]}>
         <PinPrompt
           visible
-          title="수정 비밀번호"
+          title={hasPin ? '수정 비밀번호' : '비밀번호 정하기'}
+          message={
+            hasPin
+              ? '등록할 때 넣은 숫자 4자리 비밀번호를 입력해 주세요.'
+              : '이 글은 예전에 올려서 비밀번호가 없습니다. 앞으로 쓸 숫자 4자리를 정해 주세요.'
+          }
+          submitLabel={hasPin ? '확인' : '정하기'}
           error={pinError}
           submitting={unlocking}
           onCancel={() => router.back()}
@@ -59,7 +90,8 @@ export default function EditModelScreen() {
             setUnlocking(true);
             setPinError('');
             try {
-              await unlockModel(id, pin, isAdmin);
+              await unlockOrSetModelPin(id, pin, isAdmin, hasPin);
+              setHasPin(true);
               setUnlocked(true);
             } catch (caught) {
               forgetModelPin(id);

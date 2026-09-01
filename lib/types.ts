@@ -105,6 +105,7 @@ export type Model3d = {
   url: string;
   description: string;
   author?: string;
+  hasPin?: boolean;
   createdAt: string;
   updatedAt: string;
   files?: Model3dFile[];

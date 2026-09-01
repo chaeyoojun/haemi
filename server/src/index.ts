@@ -191,12 +191,18 @@ function pinMatches(pin: string, stored: string) {
   }
 }
 
+function sameAuthor(req: Request, author: string) {
+  const name = actorName(req);
+  const posted = author.replace(/\s+/g, ' ').trim();
+  return Boolean(name) && name === posted;
+}
+
 function requireModelWrite(req: Request, model: { pinHash: string }) {
   if (isAdminRequest(req)) {
     return;
   }
   if (!model.pinHash) {
-    throw new HttpError(403, '이 항목은 비밀번호가 없어 관리자만 수정할 수 있습니다.');
+    throw new HttpError(403, '이 글은 비밀번호가 없습니다. 작성자 이름과 같은 계정으로 들어가 비밀번호를 정하거나, 관리자에게 요청해 주세요.');
   }
   if (!pinMatches(parsePin(requestPin(req)), model.pinHash)) {
     throw new HttpError(403, '비밀번호가 올바르지 않습니다.');
@@ -1145,9 +1151,10 @@ type ModelRow = {
 };
 
 function modelPayload(model: ModelRow) {
-  const { pinHash: _pinHash, ...rest } = model;
+  const { pinHash, ...rest } = model;
   return {
     ...rest,
+    hasPin: Boolean(pinHash),
     files: model.files.map((file) => ({
       id: file.id,
       fileName: file.fileName,
@@ -1404,6 +1411,31 @@ app.post(
     }
     requireModelWrite(req, model);
     res.json({ ok: true });
+  })
+);
+
+app.post(
+  '/api/models/:id/pin',
+  asyncHandler(async (req, res) => {
+    const model = await prisma.model3d.findUnique({ where: { id: idParam(req) } });
+    if (!model) {
+      throw new HttpError(404, '3D 파일을 찾을 수 없습니다.');
+    }
+    if (model.pinHash) {
+      throw new HttpError(409, '이미 비밀번호가 있습니다.');
+    }
+    if (!isAdminRequest(req) && !sameAuthor(req, model.author)) {
+      throw new HttpError(
+        403,
+        '이 글은 예전에 올려서 비밀번호가 없습니다. 작성자 이름과 같은 계정으로 들어가 비밀번호를 정하거나, 관리자에게 요청해 주세요.'
+      );
+    }
+    const pin = parsePin(requestPin(req));
+    await prisma.model3d.update({
+      where: { id: model.id },
+      data: { pinHash: hashPin(pin) },
+    });
+    res.json({ ok: true, hasPin: true });
   })
 );
 

@@ -12,6 +12,7 @@ export function PinPrompt({
   message = '등록할 때 넣은 숫자 4자리 비밀번호를 입력해 주세요.',
   error,
   submitting,
+  submitLabel,
   onCancel,
   onSubmit,
 }: {
@@ -20,6 +21,7 @@ export function PinPrompt({
   message?: string;
   error?: string;
   submitting?: boolean;
+  submitLabel?: string;
   onCancel: () => void;
   onSubmit: (pin: string) => void;
 }) {
@@ -33,6 +35,7 @@ export function PinPrompt({
   }, [visible]);
 
   const ready = isModelPin(pin) && !submitting;
+  const confirmLabel = submitLabel || '확인';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -72,7 +75,7 @@ export function PinPrompt({
               onPress={() => onSubmit(pin)}
               disabled={!ready}
               style={[styles.button, { backgroundColor: palette.tint, opacity: ready ? 1 : 0.6 }]}>
-              <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>{submitting ? '확인 중...' : '확인'}</Text>
+              <Text style={[styles.buttonText, { color: '#FFFFFF' }]}>{submitting ? '확인 중...' : confirmLabel}</Text>
             </Pressable>
           </View>
         </Pressable>

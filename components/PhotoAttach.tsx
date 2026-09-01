@@ -14,30 +14,110 @@ export type PickedPhoto = {
 };
 
 const MAX_PHOTOS = 3;
+const PREVIEW_EXTS = new Set(['jpg', 'jpeg', 'png']);
+
+function fileExt(name: string) {
+  const parts = name.toLowerCase().split('.');
+  return parts.length > 1 ? parts.pop() || '' : '';
+}
+
+export function isAllowedPreviewPhoto(name: string, mimeType?: string | null) {
+  const ext = fileExt(name);
+  const mime = (mimeType || '').toLowerCase();
+  if (PREVIEW_EXTS.has(ext)) {
+    return true;
+  }
+  if (!ext && (mime === 'image/jpeg' || mime === 'image/png' || mime === 'image/jpg')) {
+    return true;
+  }
+  return false;
+}
+
+export async function pickPreviewPhotos(remaining: number) {
+  if (remaining <= 0) {
+    return [] as PickedPhoto[];
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ['images'],
+    allowsMultipleSelection: true,
+    selectionLimit: remaining,
+    quality: 0.7,
+  });
+  if (result.canceled || !result.assets?.length) {
+    return [] as PickedPhoto[];
+  }
+  const allowed: PickedPhoto[] = [];
+  let rejected = false;
+  for (const [index, asset] of result.assets.entries()) {
+    const name = asset.fileName || `preview-${index + 1}.jpg`;
+    const mimeType = asset.mimeType || 'image/jpeg';
+    if (!isAllowedPreviewPhoto(name, mimeType)) {
+      rejected = true;
+      continue;
+    }
+    allowed.push({
+      uri: asset.uri,
+      name,
+      mimeType,
+      blob: asset.file,
+    });
+  }
+  if (rejected) {
+    Alert.alert('미리보기 사진은 JPG, JPEG, PNG만 올릴 수 있습니다.');
+  }
+  return allowed.slice(0, remaining);
+}
 
 export function PhotoAttach({
   photos,
   onChange,
+  maxPhotos = MAX_PHOTOS,
+  label = '사진 첨부',
+  formats,
 }: {
   photos: PickedPhoto[];
   onChange: (photos: PickedPhoto[]) => void;
+  maxPhotos?: number;
+  label?: string;
+  formats?: string[];
 }) {
   const palette = Colors[useColorScheme()];
-  const remaining = MAX_PHOTOS - photos.length;
+  const remaining = maxPhotos - photos.length;
+  const previewOnly = Boolean(formats?.length);
 
   const addAssets = (assets: ImagePicker.ImagePickerAsset[]) => {
-    const next = assets.slice(0, remaining).map((asset, index) => ({
-      uri: asset.uri,
-      name: asset.fileName || `photo-${photos.length + index + 1}.jpg`,
-      mimeType: asset.mimeType || 'image/jpeg',
-      blob: asset.file,
-    }));
+    const next: PickedPhoto[] = [];
+    let rejected = false;
+    for (const [index, asset] of assets.slice(0, remaining).entries()) {
+      const name = asset.fileName || `photo-${photos.length + index + 1}.jpg`;
+      const mimeType = asset.mimeType || 'image/jpeg';
+      if (previewOnly && !isAllowedPreviewPhoto(name, mimeType)) {
+        rejected = true;
+        continue;
+      }
+      next.push({
+        uri: asset.uri,
+        name,
+        mimeType,
+        blob: asset.file,
+      });
+    }
+    if (rejected) {
+      Alert.alert('미리보기 사진은 JPG, JPEG, PNG만 올릴 수 있습니다.');
+    }
     if (next.length > 0) {
       onChange([...photos, ...next]);
     }
   };
 
   const pickFromLibrary = async () => {
+    if (previewOnly) {
+      const picked = await pickPreviewPhotos(remaining);
+      if (picked.length > 0) {
+        onChange([...photos, ...picked]);
+      }
+      return;
+    }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       allowsMultipleSelection: true,
@@ -68,7 +148,7 @@ export function PhotoAttach({
     if (remaining <= 0) {
       return;
     }
-    Alert.alert('사진 첨부', `최대 ${MAX_PHOTOS}장까지 첨부할 수 있습니다.`, [
+    Alert.alert(label, `최대 ${maxPhotos}장까지 첨부할 수 있습니다.`, [
       { text: '앨범', onPress: () => void pickFromLibrary() },
       { text: '촬영', onPress: () => void takePhoto() },
       { text: '취소', style: 'cancel' },
@@ -76,7 +156,10 @@ export function PhotoAttach({
   };
 
   return (
-    <Field label={`사진 첨부 (${photos.length}/${MAX_PHOTOS})`}>
+    <Field label={`${label} (${photos.length}/${maxPhotos})`}>
+      {previewOnly ? (
+        <Text style={[styles.hint, { color: palette.muted }]}>JPG, JPEG, PNG만 올릴 수 있습니다.</Text>
+      ) : null}
       <View style={styles.row}>
         {photos.map((photo, index) => (
           <View key={`${photo.uri}-${index}`} style={styles.slot}>
@@ -126,6 +209,7 @@ export function toRepairFormData({
 }
 
 const styles = StyleSheet.create({
+  hint: { fontSize: 13, lineHeight: 18, marginBottom: 2 },
   row: { flexDirection: 'row', gap: 8 },
   slot: {
     flex: 1,

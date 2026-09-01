@@ -104,14 +104,26 @@ model Model3d {
 }
 
 model Model3dFile {
-  id        String   @id @default(cuid())
+  id        String           @id @default(cuid())
   modelId   String
-  fileName  String   @default("")
-  format    String   @default("")
-  createdAt DateTime @default(now())
-  model     Model3d  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  fileName  String           @default("")
+  format    String           @default("")
+  createdAt DateTime         @default(now())
+  model     Model3d          @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  previews  Model3dPreview[]
 
   @@index([modelId])
+}
+
+model Model3dPreview {
+  id        String      @id @default(cuid())
+  fileId    String
+  fileName  String      @default("")
+  sort      Int         @default(0)
+  createdAt DateTime    @default(now())
+  file      Model3dFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([fileId])
 }
 
 model PushToken {

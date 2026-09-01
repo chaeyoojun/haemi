@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Field, Input } from '@/components/Form';
+import { PhotoAttach, type PickedPhoto } from '@/components/PhotoAttach';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { appendLocalFile } from '@/lib/formData';
@@ -12,6 +13,7 @@ export type PickedFile = {
   name: string;
   mimeType?: string | null;
   blob?: Blob;
+  previews: PickedPhoto[];
 };
 
 export type ModelFormValues = {
@@ -46,8 +48,44 @@ export async function pickModelFiles(multiple: boolean) {
     name: asset.name,
     mimeType: asset.mimeType,
     blob: asset.file,
+    previews: [] as PickedPhoto[],
   }));
   return multiple ? next : next.slice(0, 1);
+}
+
+export function ModelFilePreviewList({
+  files,
+  onFiles,
+}: {
+  files: PickedFile[];
+  onFiles: (files: PickedFile[]) => void;
+}) {
+  const palette = Colors[useColorScheme()];
+  if (files.length === 0) {
+    return null;
+  }
+  return (
+    <View style={styles.fileList}>
+      {files.map((file, index) => (
+        <View key={`${file.uri}-${file.name}-${index}`} style={styles.fileBlock}>
+          <Text style={[styles.fileName, { color: palette.text }]} numberOfLines={1}>
+            {file.name}
+          </Text>
+          <PhotoAttach
+            photos={file.previews}
+            maxPhotos={2}
+            label="미리보기"
+            formats={['jpg', 'jpeg', 'png']}
+            onChange={(previews) => {
+              const next = files.slice();
+              next[index] = { ...file, previews };
+              onFiles(next);
+            }}
+          />
+        </View>
+      ))}
+    </View>
+  );
 }
 
 export function ModelForm({
@@ -136,16 +174,14 @@ export function ModelForm({
         </Pressable>
         {allowMultiple ? (
           <Text style={[styles.hint, { color: palette.muted }]}>
-            여러 개를 고르면 이 항목에 함께 저장됩니다. 나중에 업그레이드 파일도 추가할 수 있습니다.
+            여러 개를 고르면 이 항목에 함께 저장됩니다. 파일마다 JPG, JPEG, PNG 미리보기 2장까지 첨부할 수 있습니다.
           </Text>
-        ) : null}
-        {files.length > 1
-          ? files.map((file) => (
-              <Text key={`${file.uri}-${file.name}`} style={[styles.fileName, { color: palette.muted }]} numberOfLines={1}>
-                {file.name}
-              </Text>
-            ))
-          : null}
+        ) : (
+          <Text style={[styles.hint, { color: palette.muted }]}>
+            파일마다 JPG, JPEG, PNG 미리보기 2장까지 첨부할 수 있습니다.
+          </Text>
+        )}
+        <ModelFilePreviewList files={files} onFiles={onFiles} />
       </Field>
       <Field label="설명">
         <Input
@@ -181,8 +217,22 @@ export function ModelForm({
   );
 }
 
-export function toModelFormData(values: ModelFormValues, files: PickedFile[]) {
+export function toModelFilesFormData(files: PickedFile[]) {
   const form = new FormData();
+  form.append('previewCounts', files.map((file) => String(file.previews.length)).join(','));
+  for (const file of files) {
+    appendLocalFile(form, 'files', file);
+  }
+  for (const file of files) {
+    for (const photo of file.previews) {
+      appendLocalFile(form, 'previews', photo);
+    }
+  }
+  return form;
+}
+
+export function toModelFormData(values: ModelFormValues, files: PickedFile[]) {
+  const form = toModelFilesFormData(files);
   form.append('title', values.title);
   form.append('format', values.format);
   form.append('fileName', values.fileName);
@@ -191,16 +241,15 @@ export function toModelFormData(values: ModelFormValues, files: PickedFile[]) {
   if (values.pin) {
     form.append('pin', values.pin);
   }
-  for (const file of files) {
-    appendLocalFile(form, 'files', file);
-  }
   return form;
 }
 
 const styles = StyleSheet.create({
   form: { gap: 16, width: '100%' },
   hint: { fontSize: 13, lineHeight: 18 },
-  fileName: { fontSize: 13 },
+  fileName: { fontSize: 14, fontWeight: '700' },
+  fileList: { gap: 12 },
+  fileBlock: { gap: 8 },
   pickButton: {
     borderWidth: 1.5,
     borderRadius: 12,

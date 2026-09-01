@@ -89,12 +89,20 @@ export type Vote = {
   options: VoteOption[];
 };
 
+export type Model3dPreview = {
+  id: string;
+  fileName: string;
+  url: string;
+  createdAt: string;
+};
+
 export type Model3dFile = {
   id: string;
   fileName: string;
   format: string;
   url: string;
   createdAt: string;
+  previews?: Model3dPreview[];
 };
 
 export type Model3d = {

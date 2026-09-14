@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { AppDownloadLink } from '@/components/AppDownloadLink';
 import { Field, Input } from '@/components/Form';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
@@ -122,6 +123,11 @@ export function LoginScreen() {
             </Pressable>
           </View>
         )}
+        {Platform.OS === 'web' ? (
+          <View style={styles.download}>
+            <AppDownloadLink variant="button" />
+          </View>
+        ) : null}
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -141,6 +147,7 @@ const styles = StyleSheet.create({
   column: { width: '100%', gap: 8 },
   webColumn: { maxWidth: FORM_MAX_WIDTH },
   form: { gap: 12, marginTop: 8 },
+  download: { marginTop: 8 },
   primaryButton: {
     borderRadius: 14,
     paddingVertical: 16,

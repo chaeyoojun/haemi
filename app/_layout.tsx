@@ -5,6 +5,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Platform, StyleSheet, View } from 'react-native';
 import 'react-native-reanimated';
 
+import { AppDownloadLink } from '@/components/AppDownloadLink';
 import { AppTabBar } from '@/components/AppTabBar';
 import { AppUpdateGate } from '@/components/AppUpdateGate';
 import { BrandSplash } from '@/components/BrandSplash';
@@ -150,6 +151,7 @@ function RootLayoutNav() {
           <Stack.Screen name="game/ranks" options={{ title: '랭킹' }} />
         </Stack>
       </View>
+      {Platform.OS === 'web' && !wide ? <AppDownloadLink variant="bar" /> : null}
       {wide ? null : <AppTabBar />}
     </View>
   );

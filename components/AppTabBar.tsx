@@ -2,6 +2,7 @@ import { usePathname, useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppDownloadLink } from '@/components/AppDownloadLink';
 import { Icon } from '@/components/Icon';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
@@ -115,15 +116,20 @@ export function AppTabBar() {
         );
       })}
       {wide ? <View style={styles.spacer} /> : null}
-      {wide && displayName ? (
-        <Pressable
-          onPress={() => confirmLogout(logout)}
-          hitSlop={8}
-          accessibilityLabel={`${displayName} 로그아웃`}>
-          <Text style={[styles.nameWide, { color: palette.muted }]} numberOfLines={1}>
-            {displayName}
-          </Text>
-        </Pressable>
+      {wide ? (
+        <View style={styles.wideActions}>
+          <AppDownloadLink />
+          {displayName ? (
+            <Pressable
+              onPress={() => confirmLogout(logout)}
+              hitSlop={8}
+              accessibilityLabel={`${displayName} 로그아웃`}>
+              <Text style={[styles.nameWide, { color: palette.muted }]} numberOfLines={1}>
+                {displayName}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
@@ -173,6 +179,11 @@ const styles = StyleSheet.create({
   },
   spacer: {
     flex: 1,
+  },
+  wideActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
   },
   nameWide: {
     fontSize: 14,

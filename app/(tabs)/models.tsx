@@ -28,7 +28,6 @@ export default function ModelsScreen() {
       emptyHint="프레임, 안테나, 고글 마운트 같은 STL·OBJ 파일을 올려 공유하세요."
       createHref="/model/new"
       createLabel="3D 파일 등록"
-      table
       onRetry={reload}>
       {items.map((model) => (
         <ItemCard
@@ -36,7 +35,6 @@ export default function ModelsScreen() {
           title={model.title}
           meta={withAuthor(model.author) || undefined}
           thumbs={previewUrls(model)}
-          layout="table"
           onPress={() => router.push(detailHref('/model', model.id))}
         />
       ))}

@@ -234,8 +234,15 @@ export default function ModelDetailScreen() {
                     <View style={styles.previewRow}>
                       {(file.previews || []).map((preview) => (
                           <View key={preview.id} style={styles.previewSlot}>
-                            <Pressable onPress={() => Linking.openURL(fileUrl(preview.url))}>
-                              <Image source={{ uri: fileUrl(preview.url) }} style={styles.previewImage} />
+                            <Pressable
+                              onPress={() => Linking.openURL(fileUrl(preview.url))}
+                              style={styles.previewImageHit}
+                              accessibilityLabel="미리보기 열기">
+                              <Image
+                                source={{ uri: fileUrl(preview.url) }}
+                                style={styles.previewImage}
+                                resizeMode="cover"
+                              />
                             </Pressable>
                             <Pressable
                               onPress={() => removePreview(file, preview.id)}
@@ -371,7 +378,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#F4F4F4',
   },
-  previewImage: { width: '100%', height: '100%' },
+  previewImageHit: { width: 88, height: 88 },
+  previewImage: { width: 88, height: 88 },
   previewAdd: {
     borderWidth: 1,
     borderStyle: 'dashed',

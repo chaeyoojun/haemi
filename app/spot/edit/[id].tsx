@@ -1,4 +1,4 @@
-import { Redirect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -17,14 +17,16 @@ export default function EditSpotScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const navigation = useNavigation();
-  const { isAdmin } = useAuth();
+  const { isAdmin, displayName } = useAuth();
   const palette = Colors[useColorScheme()];
   const [title, setTitle] = useState('');
   const [place, setPlace] = useState('');
   const [description, setDescription] = useState('');
+  const [author, setAuthor] = useState('');
   const [ready, setReady] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const canWrite = isAdmin || Boolean(displayName && displayName === author);
 
   useEffect(() => {
     if (!id) return;
@@ -34,6 +36,7 @@ export default function EditSpotScreen() {
         setTitle(spot.title);
         setPlace(spot.place);
         setDescription(stripMapShareUrls(spot.description));
+        setAuthor((spot.author || '').trim());
         setReady(true);
       })
       .catch((caught) => setError(caught instanceof Error ? caught.message : '불러오지 못했습니다.'));
@@ -59,23 +62,27 @@ export default function EditSpotScreen() {
           onPress={() => {
             void onSubmit();
           }}
-          disabled={saving || !ready}
+          disabled={saving || !ready || !canWrite}
           hitSlop={8}
-          style={[styles.headerAction, { opacity: saving || !ready ? 0.5 : 1 }]}>
+          style={[styles.headerAction, { opacity: saving || !ready || !canWrite ? 0.5 : 1 }]}>
           <Text style={[styles.headerActionText, { color: palette.tint }]}>{saving ? '저장 중' : '수정'}</Text>
         </Pressable>
       ),
     });
-  }, [navigation, onSubmit, palette.tint, ready, saving]);
-
-  if (!isAdmin) {
-    return <Redirect href="/spots" />;
-  }
+  }, [canWrite, navigation, onSubmit, palette.tint, ready, saving]);
 
   if (!ready) {
     return (
       <View style={[styles.center, { backgroundColor: palette.background }]}>
         {error ? <Text style={{ color: palette.danger }}>{error}</Text> : <ActivityIndicator color={palette.tint} />}
+      </View>
+    );
+  }
+
+  if (!canWrite) {
+    return (
+      <View style={[styles.center, { backgroundColor: palette.background }]}>
+        <Text style={{ color: palette.danger }}>작성자나 관리자만 수정할 수 있습니다.</Text>
       </View>
     );
   }
@@ -90,6 +97,12 @@ export default function EditSpotScreen() {
         <Input value={description} onChangeText={setDescription} placeholder="" multiline minHeight={68} />
       </Field>
       {error ? <Text style={{ color: palette.danger }}>{error}</Text> : null}
+      <Pressable
+        onPress={() => void onSubmit()}
+        disabled={saving}
+        style={[styles.submit, { backgroundColor: palette.tint, opacity: saving ? 0.7 : 1 }]}>
+        <Text style={styles.submitText}>{saving ? '저장 중...' : '수정'}</Text>
+      </Pressable>
     </FormScroll>
   );
 }
@@ -98,4 +111,6 @@ const styles = StyleSheet.create({
   center: { flex: 1, padding: 20, justifyContent: 'center' },
   headerAction: { paddingHorizontal: 8, paddingVertical: 6 },
   headerActionText: { fontSize: 17, fontWeight: '700' },
+  submit: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
+  submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

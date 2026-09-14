@@ -25,16 +25,23 @@ export function InlineMoreActions({
   const screen = Dimensions.get('window');
 
   const openMenu = () => {
-    buttonRef.current?.measureInWindow((x, y, width, height) => {
-      const screenWidth = Dimensions.get('window').width;
+    const screenWidth = Dimensions.get('window').width;
+    const placeMenu = (x: number, y: number, width: number, height: number) => {
       setAnchor({
-        top: y + height + 4,
+        top: Math.max(8, y + height + 4),
         right: Math.max(12, screenWidth - x - width),
       });
-      if (!open) {
-        onToggle();
-      }
-    });
+    };
+    try {
+      buttonRef.current?.measureInWindow((x, y, width, height) => {
+        placeMenu(x || 0, y || 0, width || 28, height || 28);
+      });
+    } catch {
+      // web may not measure the button
+    }
+    if (!open) {
+      onToggle();
+    }
   };
 
   return (

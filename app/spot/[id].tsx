@@ -19,7 +19,7 @@ export default function SpotDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const palette = Colors[useColorScheme()];
-  const { isAdmin } = useAuth();
+  const { isAdmin, displayName } = useAuth();
   const [spot, setSpot] = useState<Spot | null>(null);
   const [error, setError] = useState('');
   const [mapOpen, setMapOpen] = useState(true);
@@ -41,6 +41,7 @@ export default function SpotDetailScreen() {
   }, [load]);
 
   const note = spot ? stripMapShareUrls(spot.description) : '';
+  const canWrite = Boolean(spot && (isAdmin || (displayName && displayName === (spot.author || '').trim())));
 
   return (
     <View style={[styles.screen, { backgroundColor: palette.background }]}>
@@ -55,7 +56,7 @@ export default function SpotDetailScreen() {
               <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
                 {spot.title}
               </Text>
-              {isAdmin ? (
+              {canWrite ? (
                 <InlineMoreActions
                   open={menuOpen}
                   onToggle={() => setMenuOpen((open) => !open)}

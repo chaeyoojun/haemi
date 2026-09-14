@@ -320,6 +320,8 @@ async function searchKakaoPlaces(query: string): Promise<PlaceHit[]> {
 const REGION_TOKEN =
   /^(서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청|전라|경상)/;
 const ROAD_NUMBER = /([가-힣0-9]+(?:대로|번길|로|길|가))(\d+(?:-\d+)*)/g;
+const REGION_START =
+  /((?:서울특별시|부산광역시|대구광역시|인천광역시|광주광역시|대전광역시|울산광역시|세종특별자치시|경기도|강원도|충청북도|충청남도|전라북도|전라남도|경상북도|경상남도|제주특별자치도|서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청|전라|경상)\s.*)$/;
 
 function geocodeQueries(query: string) {
   const trimmed = query.trim().replace(/\s+/g, ' ');
@@ -333,6 +335,10 @@ function geocodeQueries(query: string) {
   };
   add(trimmed);
   add(spaced);
+  const region = spaced.match(REGION_START);
+  if (region) {
+    add(region[1]);
+  }
   add(spaced.replace(/\s+\d+(-\d+)*$/, ''));
   for (const part of spaced.split(/[,\s]+/)) {
     if (
@@ -544,12 +550,23 @@ app.get(
   })
 );
 
+function requireSpotWrite(req: Request, spot: { author: string }) {
+  if (isAdminRequest(req) || sameAuthor(req, spot.author)) {
+    return;
+  }
+  throw new HttpError(403, '작성자나 관리자만 수정할 수 있습니다.');
+}
+
 app.patch(
   '/api/spots/:id',
   asyncHandler(async (req, res) => {
-    requireAdmin(req);
+    const current = await prisma.spot.findUnique({ where: { id: idParam(req) } });
+    if (!current) {
+      throw new HttpError(404, '스팟을 찾을 수 없습니다.');
+    }
+    requireSpotWrite(req, current);
     const spot = await prisma.spot.update({
-      where: { id: idParam(req) },
+      where: { id: current.id },
       data: {
         ...(req.body.title != null ? { title: text(req.body.title, '스팟 이름') } : {}),
         ...(req.body.place != null ? { place: text(req.body.place, '장소', false) } : {}),
@@ -563,8 +580,12 @@ app.patch(
 app.delete(
   '/api/spots/:id',
   asyncHandler(async (req, res) => {
-    requireAdmin(req);
-    await prisma.spot.delete({ where: { id: idParam(req) } });
+    const current = await prisma.spot.findUnique({ where: { id: idParam(req) } });
+    if (!current) {
+      throw new HttpError(404, '스팟을 찾을 수 없습니다.');
+    }
+    requireSpotWrite(req, current);
+    await prisma.spot.delete({ where: { id: current.id } });
     res.status(204).end();
   })
 );

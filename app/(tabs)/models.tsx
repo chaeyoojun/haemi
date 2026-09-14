@@ -1,10 +1,19 @@
 import { useRouter } from 'expo-router';
 
 import { ItemCard, ResourceList } from '@/components/ResourceList';
+import { fileUrl } from '@/lib/api';
 import { withAuthor } from '@/lib/format';
 import { detailHref } from '@/lib/nav';
 import type { Model3d } from '@/lib/types';
 import { useApiList } from '@/lib/useApiList';
+
+function previewUrls(model: Model3d) {
+  return (model.files || [])
+    .flatMap((file) => file.previews || [])
+    .map((preview) => fileUrl(preview.url))
+    .filter(Boolean)
+    .slice(0, 6);
+}
 
 export default function ModelsScreen() {
   const router = useRouter();
@@ -26,6 +35,7 @@ export default function ModelsScreen() {
           key={model.id}
           title={model.title}
           meta={withAuthor(model.author) || undefined}
+          thumbs={previewUrls(model)}
           layout="table"
           onPress={() => router.push(detailHref('/model', model.id))}
         />

@@ -9,6 +9,7 @@ import {
   mapWindowHtml,
   moveMarkerScript,
   parseMapMessage,
+  resolveMapCoords,
   sameCoords,
   type MapCoords,
 } from '@/lib/maps';
@@ -105,23 +106,21 @@ export function KakaoMapEmbed({
     if (!htmlRef.current) {
       setReady(false);
     }
-    api
-      .get<MapCoords>(`/api/map?q=${encodeURIComponent(query)}`)
-      .then((found) => coordsFromPlace(found) ?? Promise.reject(new Error('no coords')))
-      .catch(() => geocodeNominatim(query))
-      .then((found) => {
-        if (cancelled) return;
-        if (found) {
-          show(found);
-        } else {
-          setError('지도를 찾지 못했습니다.');
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setError('지도를 찾지 못했습니다.');
-        }
-      });
+    const lookup = async (next: string) => {
+      try {
+        return coordsFromPlace(await api.get<MapCoords>(`/api/map?q=${encodeURIComponent(next)}`));
+      } catch {
+        return geocodeNominatim(next);
+      }
+    };
+    void resolveMapCoords(lookup, name, place).then((found) => {
+      if (cancelled) return;
+      if (found) {
+        show(found);
+      } else {
+        setError('지도를 찾지 못했습니다.');
+      }
+    });
 
     return () => {
       cancelled = true;

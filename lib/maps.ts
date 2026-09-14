@@ -31,6 +31,40 @@ export function coordsFromPlace(place: { lat?: number; lng?: number } | null | u
   return { lat, lng };
 }
 
+export function mapSearchQueries(name: string | undefined, place: string) {
+  const queries: string[] = [];
+  const add = (value?: string) => {
+    const next = (value || '').trim().replace(/\s+/g, ' ');
+    if (next.length >= 2 && !queries.includes(next)) {
+      queries.push(next);
+    }
+  };
+  add([name, place].filter((value) => value && value.trim()).join(' '));
+  add(place);
+  add(name);
+  const region = (place || '').match(
+    /((?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주|충청|전라|경상)\s.*)$/
+  );
+  if (region) {
+    add(region[1]);
+  }
+  return queries;
+}
+
+export async function resolveMapCoords(
+  lookup: (query: string) => Promise<MapCoords | null>,
+  name: string | undefined,
+  place: string
+) {
+  for (const query of mapSearchQueries(name, place)) {
+    const found = await lookup(query);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
 export function sameCoords(a: MapCoords | null | undefined, b: MapCoords | null | undefined) {
   if (!a || !b) {
     return false;

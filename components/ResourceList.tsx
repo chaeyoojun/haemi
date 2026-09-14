@@ -1,6 +1,6 @@
 import { Link, type Href } from 'expo-router';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { RefreshableScroll } from '@/components/RefreshableScroll';
@@ -83,6 +83,7 @@ export function ItemCard({
   title,
   meta,
   body,
+  thumbs,
   onPress,
   more,
   layout = 'stack',
@@ -90,6 +91,7 @@ export function ItemCard({
   title: string;
   meta?: string;
   body?: string;
+  thumbs?: string[];
   onPress: () => void;
   more?: ReactNode;
   layout?: 'stack' | 'row' | 'table';
@@ -98,15 +100,37 @@ export function ItemCard({
   const wide = useWideLayout();
   if (layout === 'table') {
     return (
-      <Pressable onPress={onPress} style={[styles.tableRow, { borderBottomColor: palette.border }]}>
-        <Text style={[styles.tableTitle, { color: palette.text }]} numberOfLines={1}>
-          {title}
-        </Text>
-        {meta ? (
-          <Text style={[styles.tableMeta, { color: palette.tint }]} numberOfLines={1}>
-            {meta}
-          </Text>
-        ) : null}
+      <Pressable onPress={onPress} style={[styles.tableRow, thumbs ? styles.tableCard : null, { borderBottomColor: palette.border }]}>
+        <View style={styles.tableMain}>
+          <View style={styles.tableHead}>
+            <Text style={[styles.tableTitle, { color: palette.text }]} numberOfLines={2}>
+              {title}
+            </Text>
+            {meta ? (
+              <Text style={[styles.tableMeta, { color: palette.tint }]} numberOfLines={1}>
+                {meta}
+              </Text>
+            ) : null}
+          </View>
+          {thumbs ? (
+            <View style={styles.thumbs}>
+              {thumbs.length > 0 ? (
+                thumbs.map((uri, index) => (
+                  <Image
+                    key={`${uri}-${index}`}
+                    source={{ uri }}
+                    style={[styles.thumb, { borderColor: palette.border }]}
+                    resizeMode="cover"
+                  />
+                ))
+              ) : (
+                <View style={[styles.thumb, styles.thumbEmpty, { borderColor: palette.border }]}>
+                  <Text style={[styles.thumbEmptyText, { color: palette.muted }]}>미리보기 없음</Text>
+                </View>
+              )}
+            </View>
+          ) : null}
+        </View>
       </Pressable>
     );
   }
@@ -181,8 +205,32 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  tableCard: {
+    alignItems: 'stretch',
+    paddingVertical: 16,
+  },
+  tableMain: { flex: 1, gap: 10 },
+  tableHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   tableTitle: { flex: 1, fontSize: 16, fontWeight: '700' },
   tableMeta: { flexShrink: 0, fontSize: 13, fontWeight: '600' },
+  thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  thumb: {
+    width: 88,
+    height: 88,
+    borderRadius: 10,
+    backgroundColor: '#F4F4F4',
+    borderWidth: 1,
+    overflow: 'hidden',
+    flexShrink: 0,
+  },
+  thumbEmpty: {
+    width: 88,
+    height: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  thumbEmptyText: { fontSize: 11, textAlign: 'center', lineHeight: 15 },
   primaryButton: {
     marginTop: 8,
     alignSelf: 'flex-start',

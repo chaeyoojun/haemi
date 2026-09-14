@@ -13,7 +13,7 @@ npm run android
 
 ## 서버 배포
 
-가비아 클라우드(`ubuntu@121.78.183.225`)에 API와 DB를 올립니다. SSH 키는 `C:\workspace\toolloop\SSH_KeyPair-260716092832.pem` 입니다.
+가비아 클라우드(`rocky@1.201.117.26`)에 API와 DB를 올립니다. SSH 키는 `C:\workspace\toolloop\iaminfluencer1006.pem` 입니다.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File deploy/push-to-gabia.ps1

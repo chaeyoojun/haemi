@@ -8,8 +8,8 @@ const flags = new Set(process.argv.slice(2));
 const wantApk = flags.has('--apk') || (!flags.has('--ipa') && !flags.has('--apk'));
 const wantIpa = flags.has('--ipa') || (!flags.has('--ipa') && !flags.has('--apk'));
 const notes = process.env.PUBLISH_NOTES || '앱 업데이트';
-const serverHost = process.env.HAEMI_SERVER_HOST || '121.78.183.225';
-const sshUser = process.env.HAEMI_SSH_USER || 'ubuntu';
+const serverHost = process.env.HAEMI_SERVER_HOST || '1.201.117.26';
+const sshUser = process.env.HAEMI_SSH_USER || 'rocky';
 const remoteDir = process.env.HAEMI_REMOTE_DIR || '~/haemi';
 const appJson = JSON.parse(fs.readFileSync(path.join(root, 'app.json'), 'utf8'));
 const version = appJson.expo.version;
@@ -20,10 +20,10 @@ const ipa = path.join(root, 'dist', 'haemi.ipa');
 function findKey() {
   const candidates = [
     process.env.HAEMI_SSH_KEY,
-    'C:\\workspace\\toolloop\\SSH_KeyPair-260716092832.pem',
-    path.join(os.homedir(), '.ssh', 'SSH_KeyPair-260716092832.pem'),
-    path.join(os.homedir(), 'SSH_KeyPair-260716092832.pem'),
-    path.join(root, 'SSH_KeyPair-260716092832.pem'),
+    'C:\\workspace\\toolloop\\iaminfluencer1006.pem',
+    path.join(os.homedir(), '.ssh', 'iaminfluencer1006.pem'),
+    path.join(os.homedir(), 'iaminfluencer1006.pem'),
+    path.join(root, 'iaminfluencer1006.pem'),
   ].filter(Boolean);
   const found = candidates.find((candidate) => fs.existsSync(candidate));
   if (!found) {
@@ -58,7 +58,7 @@ if (!uploads.length) {
 
 const keyPath = findKey();
 const target = `${sshUser}@${serverHost}`;
-const sshBase = ['-i', keyPath, '-o', 'StrictHostKeyChecking=accept-new'];
+const sshBase = ['-i', keyPath, '-o', 'StrictHostKeyChecking=accept-new', '-o', 'ConnectTimeout=15'];
 const versionFile = path.join(os.tmpdir(), 'haemi-version.json');
 fs.writeFileSync(
   versionFile,

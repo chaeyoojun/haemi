@@ -2,20 +2,22 @@
 set -euo pipefail
 SITE=/etc/nginx/sites-available/haemi-web
 sudo mkdir -p /var/www/haemi-web
+sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
 
-if [ -f /etc/letsencrypt/live/hm.if.io.kr/fullchain.pem ] && [ -f "$SITE" ] && grep -q "ssl_certificate" "$SITE"; then
-  echo "nginx: hm.if.io.kr already has HTTPS, keeping existing site"
-else
+if sudo test -f /etc/letsencrypt/live/hm.if.io.kr/fullchain.pem; then
   sudo cp /tmp/haemi-web.conf "$SITE"
   sudo ln -sfn "$SITE" /etc/nginx/sites-enabled/haemi-web
   sudo nginx -t
   sudo systemctl reload nginx
-  echo "nginx: haemi-web installed"
-  if [ ! -f /etc/letsencrypt/live/hm.if.io.kr/fullchain.pem ]; then
-    if sudo certbot --nginx -d hm.if.io.kr --non-interactive --agree-tos --redirect --register-unsafely-without-email; then
-      echo "nginx: hm.if.io.kr certificate issued"
-    else
-      echo "nginx: certificate skipped. Add DNS A record hm.if.io.kr -> 121.78.183.225 then rerun certbot."
-    fi
+  echo "nginx: haemi-web HTTPS installed"
+else
+  echo "nginx: certificate missing for hm.if.io.kr, keeping current site"
+  if [ ! -f "$SITE" ]; then
+    sudo cp /tmp/haemi-web.conf "$SITE"
+    sudo ln -sfn "$SITE" /etc/nginx/sites-enabled/haemi-web
+    sudo nginx -t
+    sudo systemctl reload nginx
+    echo "nginx: haemi-web HTTP installed"
   fi
+  echo "nginx: add DNS A record hm.if.io.kr -> 1.201.117.26 then install certbot."
 fi

@@ -1,7 +1,7 @@
 param(
-    [string] $ServerHost = "121.78.183.225",
-    [string] $SshUser = "ubuntu",
-    [string] $KeyPath = "C:\workspace\toolloop\SSH_KeyPair-260716092832.pem",
+    [string] $ServerHost = "1.201.117.26",
+    [string] $SshUser = "rocky",
+    [string] $KeyPath = "C:\workspace\toolloop\iaminfluencer1006.pem",
     [string] $RemoteDir = "~/haemi"
 )
 
@@ -38,7 +38,7 @@ finally {
     Pop-Location
 }
 
-$sshBase = @("-i", $KeyPath, "-o", "StrictHostKeyChecking=accept-new")
+$sshBase = @("-i", $KeyPath, "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=15")
 $sshTarget = "${SshUser}@${ServerHost}"
 
 & ssh.exe @sshBase $sshTarget "mkdir -p $RemoteDir"

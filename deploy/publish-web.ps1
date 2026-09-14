@@ -1,7 +1,7 @@
 param(
-    [string] $ServerHost = "121.78.183.225",
-    [string] $SshUser = "ubuntu",
-    [string] $KeyPath = "C:\workspace\toolloop\SSH_KeyPair-260716092832.pem",
+    [string] $ServerHost = "1.201.117.26",
+    [string] $SshUser = "rocky",
+    [string] $KeyPath = "C:\workspace\toolloop\iaminfluencer1006.pem",
     [string] $RemoteDir = "~/haemi"
 )
 
@@ -24,10 +24,10 @@ finally {
     Pop-Location
 }
 
-$sshBase = @("-i", $KeyPath, "-o", "StrictHostKeyChecking=accept-new")
+$sshBase = @("-i", $KeyPath, "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=15")
 $sshTarget = "${SshUser}@${ServerHost}"
 
-& ssh.exe @sshBase $sshTarget "mkdir -p $RemoteDir/deploy /tmp/haemi-web"
+& ssh.exe @sshBase $sshTarget "mkdir -p $RemoteDir/deploy; if [ -f /tmp/haemi-web ]; then rm -f /tmp/haemi-web; fi"
 if ($LASTEXITCODE -ne 0) { throw "SSH mkdir failed" }
 
 & scp.exe @sshBase $Archive "${sshTarget}:/tmp/haemi-web.tgz"
@@ -45,7 +45,11 @@ sudo mkdir -p /var/www/haemi-web
 sudo rm -rf /var/www/haemi-web/*
 sudo tar -xzf /tmp/haemi-web.tgz -C /var/www/haemi-web
 rm -f /tmp/haemi-web.tgz
-sudo chown -R www-data:www-data /var/www/haemi-web
+if id www-data >/dev/null 2>&1; then
+  sudo chown -R www-data:www-data /var/www/haemi-web
+elif id nginx >/dev/null 2>&1; then
+  sudo chown -R nginx:nginx /var/www/haemi-web
+fi
 sed -i 's/\r$//' $RemoteDir/deploy/install-web-nginx.sh
 bash $RemoteDir/deploy/install-web-nginx.sh
 "@

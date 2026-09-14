@@ -1,5 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Field } from '@/components/Form';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -14,34 +14,88 @@ export type PickedPhoto = {
 };
 
 const MAX_PHOTOS = 3;
-const PREVIEW_EXTS = new Set(['jpg', 'jpeg', 'png']);
+const JPEG_EXTS = new Set(['jpg', 'jpeg']);
+const PNG_EXTS = new Set(['png']);
+const CONVERTIBLE_EXTS = new Set(['heic', 'heif', 'webp']);
 
 function fileExt(name: string) {
-  const parts = name.toLowerCase().split('.');
+  const cleaned = (name || '').split(/[?#]/)[0];
+  const parts = cleaned.toLowerCase().split('.');
   return parts.length > 1 ? parts.pop() || '' : '';
 }
 
-export function isAllowedPreviewPhoto(name: string, mimeType?: string | null) {
-  const ext = fileExt(name);
-  const mime = (mimeType || '').toLowerCase();
-  if (PREVIEW_EXTS.has(ext)) {
-    return true;
+function notify(message: string) {
+  if (Platform.OS === 'web') {
+    if (typeof window !== 'undefined') {
+      window.alert(message);
+    }
+    return;
   }
-  if (!ext && (mime === 'image/jpeg' || mime === 'image/png' || mime === 'image/jpg')) {
-    return true;
-  }
-  return false;
+  Alert.alert(message);
 }
+
+function previewExtForAsset(name?: string | null, mimeType?: string | null, uri?: string | null) {
+  const nameExt = fileExt(name || '');
+  const uriExt = fileExt(uri || '');
+  const mime = (mimeType || '').toLowerCase();
+  if (PNG_EXTS.has(nameExt) || PNG_EXTS.has(uriExt) || mime === 'image/png') {
+    return 'png' as const;
+  }
+  if (JPEG_EXTS.has(nameExt) || JPEG_EXTS.has(uriExt) || mime === 'image/jpeg' || mime === 'image/jpg') {
+    return nameExt === 'jpeg' || uriExt === 'jpeg' ? ('jpeg' as const) : ('jpg' as const);
+  }
+  if (Platform.OS !== 'web' && (CONVERTIBLE_EXTS.has(nameExt) || mime === 'image/heic' || mime === 'image/heif' || mime === 'image/webp')) {
+    return PNG_EXTS.has(uriExt) ? ('png' as const) : ('jpg' as const);
+  }
+  return null;
+}
+
+export function isAllowedPreviewPhoto(name: string, mimeType?: string | null, uri?: string) {
+  return previewExtForAsset(name, mimeType, uri) != null;
+}
+
+function photoFromAsset(
+  asset: ImagePicker.ImagePickerAsset,
+  index: number,
+  fallbackPrefix: string,
+  previewOnly: boolean
+): PickedPhoto | null {
+  const originalName = asset.fileName || `${fallbackPrefix}-${index + 1}.jpg`;
+  if (previewOnly) {
+    const ext = previewExtForAsset(asset.fileName, asset.mimeType, asset.uri);
+    if (!ext) {
+      return null;
+    }
+    const stem = originalName.replace(/\.[^.]+$/, '').trim() || `${fallbackPrefix}-${index + 1}`;
+    return {
+      uri: asset.uri,
+      name: `${stem}.${ext}`,
+      mimeType: ext === 'png' ? 'image/png' : 'image/jpeg',
+      blob: asset.file,
+    };
+  }
+  return {
+    uri: asset.uri,
+    name: originalName,
+    mimeType: asset.mimeType || 'image/jpeg',
+    blob: asset.file,
+  };
+}
+
+const previewPickerOptions: ImagePicker.ImagePickerOptions = {
+  mediaTypes: ['images'],
+  allowsMultipleSelection: true,
+  quality: 0.7,
+  preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+};
 
 export async function pickPreviewPhotos(remaining: number) {
   if (remaining <= 0) {
     return [] as PickedPhoto[];
   }
   const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    allowsMultipleSelection: true,
+    ...previewPickerOptions,
     selectionLimit: remaining,
-    quality: 0.7,
   });
   if (result.canceled || !result.assets?.length) {
     return [] as PickedPhoto[];
@@ -49,21 +103,15 @@ export async function pickPreviewPhotos(remaining: number) {
   const allowed: PickedPhoto[] = [];
   let rejected = false;
   for (const [index, asset] of result.assets.entries()) {
-    const name = asset.fileName || `preview-${index + 1}.jpg`;
-    const mimeType = asset.mimeType || 'image/jpeg';
-    if (!isAllowedPreviewPhoto(name, mimeType)) {
+    const photo = photoFromAsset(asset, index, 'preview', true);
+    if (!photo) {
       rejected = true;
       continue;
     }
-    allowed.push({
-      uri: asset.uri,
-      name,
-      mimeType,
-      blob: asset.file,
-    });
+    allowed.push(photo);
   }
   if (rejected) {
-    Alert.alert('미리보기 사진은 JPG, JPEG, PNG만 올릴 수 있습니다.');
+    notify('미리보기 사진은 JPG, JPEG, PNG만 올릴 수 있습니다.');
   }
   return allowed.slice(0, remaining);
 }
@@ -89,21 +137,15 @@ export function PhotoAttach({
     const next: PickedPhoto[] = [];
     let rejected = false;
     for (const [index, asset] of assets.slice(0, remaining).entries()) {
-      const name = asset.fileName || `photo-${photos.length + index + 1}.jpg`;
-      const mimeType = asset.mimeType || 'image/jpeg';
-      if (previewOnly && !isAllowedPreviewPhoto(name, mimeType)) {
+      const photo = photoFromAsset(asset, photos.length + index, 'photo', previewOnly);
+      if (!photo) {
         rejected = true;
         continue;
       }
-      next.push({
-        uri: asset.uri,
-        name,
-        mimeType,
-        blob: asset.file,
-      });
+      next.push(photo);
     }
     if (rejected) {
-      Alert.alert('미리보기 사진은 JPG, JPEG, PNG만 올릴 수 있습니다.');
+      notify('미리보기 사진은 JPG, JPEG, PNG만 올릴 수 있습니다.');
     }
     if (next.length > 0) {
       onChange([...photos, ...next]);
@@ -119,10 +161,8 @@ export function PhotoAttach({
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsMultipleSelection: true,
+      ...previewPickerOptions,
       selectionLimit: remaining,
-      quality: 0.7,
     });
     if (!result.canceled) {
       addAssets(result.assets);
@@ -132,12 +172,13 @@ export function PhotoAttach({
   const takePhoto = async () => {
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert('카메라 권한이 필요합니다.');
+      notify('카메라 권한이 필요합니다.');
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'],
       quality: 0.7,
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
     });
     if (!result.canceled) {
       addAssets(result.assets);
@@ -146,6 +187,10 @@ export function PhotoAttach({
 
   const onAdd = () => {
     if (remaining <= 0) {
+      return;
+    }
+    if (Platform.OS === 'web') {
+      void pickFromLibrary();
       return;
     }
     Alert.alert(label, `최대 ${maxPhotos}장까지 첨부할 수 있습니다.`, [

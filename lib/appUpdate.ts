@@ -12,6 +12,7 @@ export type AppRelease = {
   apkUrl: string;
   ipaUrl?: string;
   iosInstallUrl?: string;
+  hasApk?: boolean;
   hasIpa?: boolean;
 };
 

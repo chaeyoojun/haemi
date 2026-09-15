@@ -18,7 +18,6 @@ type Props = {
   createLabel: string;
   canCreate?: boolean;
   header?: ReactNode;
-  table?: boolean;
   flush?: boolean;
   onRetry: () => void | Promise<void>;
   children: ReactNode;
@@ -34,7 +33,6 @@ export function ResourceList({
   createLabel,
   canCreate = true,
   header,
-  table = false,
   flush = false,
   onRetry,
   children,
@@ -58,18 +56,7 @@ export function ResourceList({
         ) : empty ? (
           <Text style={[styles.emptyText, { color: palette.muted }]}>{emptyTitle}</Text>
         ) : (
-          <View
-            style={
-              table
-                ? [styles.table, { borderColor: palette.border }]
-                : flush
-                  ? styles.flush
-                  : wide
-                    ? styles.grid
-                    : undefined
-            }>
-            {children}
-          </View>
+          <View style={flush ? styles.flush : wide ? styles.grid : undefined}>{children}</View>
         )}
       </RefreshableScroll>
       {canCreate ? (
@@ -102,56 +89,10 @@ export function ItemCard({
   thumbs?: string[];
   onPress: () => void;
   more?: ReactNode;
-  layout?: 'stack' | 'row' | 'table';
+  layout?: 'stack' | 'row';
 }) {
   const palette = Colors[useColorScheme()];
   const wide = useWideLayout();
-  if (layout === 'table') {
-    return (
-      <Pressable onPress={onPress} style={[styles.tableRow, thumbs ? styles.tableCard : null, { borderBottomColor: palette.border }]}>
-        <View style={styles.tableMain}>
-          <View style={styles.tableHead}>
-            {badge ? (
-              <Text style={[styles.badge, { color: palette.tint, borderColor: palette.tint }]} numberOfLines={1}>
-                {badge}
-              </Text>
-            ) : null}
-            <Text style={[styles.tableTitle, { color: palette.text }]} numberOfLines={2}>
-              {title}
-            </Text>
-            {meta ? (
-              <Text style={[styles.tableMeta, { color: palette.tint }]} numberOfLines={1}>
-                {meta}
-              </Text>
-            ) : null}
-          </View>
-          {body ? (
-            <Text style={[styles.tableBody, { color: palette.muted }]} numberOfLines={2}>
-              {body}
-            </Text>
-          ) : null}
-          {thumbs ? (
-            <View style={styles.thumbs}>
-              {thumbs.length > 0 ? (
-                thumbs.map((uri, index) => (
-                  <Image
-                    key={`${uri}-${index}`}
-                    source={{ uri }}
-                    style={[styles.thumb, { borderColor: palette.border }]}
-                    resizeMode="cover"
-                  />
-                ))
-              ) : (
-                <View style={[styles.thumb, styles.thumbEmpty, { borderColor: palette.border }]}>
-                  <Text style={[styles.thumbEmptyText, { color: palette.muted }]}>미리보기 없음</Text>
-                </View>
-              )}
-            </View>
-          ) : null}
-        </View>
-      </Pressable>
-    );
-  }
   if (layout === 'row') {
     return (
       <Pressable
@@ -182,6 +123,33 @@ export function ItemCard({
         wide ? styles.cardWide : null,
         { backgroundColor: palette.card, borderColor: palette.border },
       ]}>
+      {thumbs ? (
+        <View style={styles.cardMedia}>
+          {thumbs[0] ? (
+            <Image
+              source={{ uri: thumbs[0] }}
+              style={[styles.cover, { borderColor: palette.border }]}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.cover, styles.coverEmpty, { borderColor: palette.border }]}>
+              <Text style={[styles.thumbEmptyText, { color: palette.muted }]}>미리보기 없음</Text>
+            </View>
+          )}
+          {thumbs.length > 1 ? (
+            <View style={styles.thumbs}>
+              {thumbs.slice(1).map((uri, index) => (
+                <Image
+                  key={`${uri}-${index}`}
+                  source={{ uri }}
+                  style={[styles.thumb, { borderColor: palette.border }]}
+                  resizeMode="cover"
+                />
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
       <Text style={[styles.title, { color: palette.text }]}>{title}</Text>
       {meta ? <Text style={[styles.meta, { color: palette.tint }]}>{meta}</Text> : null}
       {body ? <Text style={[styles.body, { color: palette.muted }]}>{body}</Text> : null}
@@ -195,8 +163,21 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingBottom: 96, gap: 12, width: '100%' },
   flush: { width: '100%' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  card: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 20, paddingVertical: 20, gap: 8 },
+  card: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 16, paddingVertical: 16, gap: 10 },
   cardWide: { flexGrow: 1, flexBasis: 360, maxWidth: '100%' },
+  cardMedia: { gap: 8 },
+  cover: {
+    width: '100%',
+    height: 168,
+    borderRadius: 12,
+    backgroundColor: '#F4F4F4',
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  coverEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rowCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -209,39 +190,6 @@ const styles = StyleSheet.create({
   rowMeta: { flexShrink: 0, fontSize: 13 },
   body: { fontSize: 15, lineHeight: 22 },
   emptyText: { fontSize: 15, paddingTop: 8 },
-  table: {
-    borderWidth: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-    width: '100%',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  tableCard: {
-    alignItems: 'stretch',
-    paddingVertical: 16,
-  },
-  tableMain: { flex: 1, gap: 10 },
-  tableHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  tableTitle: { flex: 1, fontSize: 16, fontWeight: '700' },
-  tableMeta: { flexShrink: 0, fontSize: 13, fontWeight: '600' },
-  tableBody: { fontSize: 13, lineHeight: 18 },
-  badge: {
-    flexShrink: 0,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    fontSize: 12,
-    fontWeight: '700',
-    overflow: 'hidden',
-  },
   thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   thumb: {
     width: 88,
@@ -251,13 +199,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     overflow: 'hidden',
     flexShrink: 0,
-  },
-  thumbEmpty: {
-    width: 88,
-    height: 88,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
   },
   thumbEmptyText: { fontSize: 11, textAlign: 'center', lineHeight: 15 },
   primaryButton: {

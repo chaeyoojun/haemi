@@ -13,6 +13,7 @@ import {
   View,
 } from 'react-native';
 
+import { AppDownloadLink } from '@/components/AppDownloadLink';
 import { brandFillSize, brandHero } from '@/components/BrandSplash';
 import { Field, Input } from '@/components/Form';
 import { useColorScheme } from '@/components/useColorScheme';
@@ -183,6 +184,11 @@ export function LoginScreen() {
                 </Pressable>
               </View>
             )}
+            {Platform.OS === 'web' ? (
+              <View style={styles.download}>
+                <AppDownloadLink variant="button" />
+              </View>
+            ) : null}
           </Animated.View>
         </View>
       </ScrollView>
@@ -202,6 +208,7 @@ const styles = StyleSheet.create({
   webScroll: { alignItems: 'center' },
   column: { gap: 8, alignItems: 'stretch' },
   form: { gap: 12, marginTop: 8, width: '100%' },
+  download: { marginTop: 8 },
   primaryButton: {
     borderRadius: 14,
     paddingVertical: 16,

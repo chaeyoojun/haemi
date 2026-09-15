@@ -2,6 +2,7 @@ import { usePathname, useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AppDownloadLink } from '@/components/AppDownloadLink';
 import { Icon } from '@/components/Icon';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
@@ -120,6 +121,7 @@ export function AppTabBar() {
       </View>
       {wide ? (
         <View style={styles.sideWideEnd}>
+          <AppDownloadLink />
           {displayName ? (
             <Pressable
               onPress={() => confirmLogout(logout)}
@@ -159,6 +161,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
+    gap: 16,
   },
   tabs: {
     flex: 1,

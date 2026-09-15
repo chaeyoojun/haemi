@@ -87,43 +87,50 @@ export function AppTabBar() {
         },
       ]}>
       {wide ? (
-        <Text style={[styles.brand, { color: palette.tint }]} accessibilityRole="header">
-          HMFPV
-        </Text>
-      ) : null}
-      {tabs.map((tab) => {
-        const active = tab.match(pathname);
-        const color = active ? palette.tint : palette.tabIconDefault;
-        return (
-          <Pressable
-            key={tab.title}
-            onPress={() => {
-              if (!active || pathname !== tab.href) {
-                router.navigate(tab.href);
-              }
-            }}
-            style={[
-              wide ? styles.itemWide : styles.item,
-              wide && active ? { backgroundColor: '#FEF6EE' } : null,
-            ]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: active }}
-            accessibilityLabel={tab.title}>
-            <Icon ios={tab.ios} android={tab.android} color={color} size={wide ? 20 : 24} />
-            <Text style={[wide ? styles.labelWide : styles.label, { color }]}>{tab.title}</Text>
-          </Pressable>
-        );
-      })}
-      {wide ? <View style={styles.spacer} /> : null}
-      {wide && displayName ? (
-        <Pressable
-          onPress={() => confirmLogout(logout)}
-          hitSlop={8}
-          accessibilityLabel={`${displayName} 로그아웃`}>
-          <Text style={[styles.nameWide, { color: palette.muted }]} numberOfLines={1}>
-            {displayName}
+        <View style={styles.sideWide}>
+          <Text style={[styles.brand, { color: palette.tint }]} accessibilityRole="header">
+            HMFPV
           </Text>
-        </Pressable>
+        </View>
+      ) : null}
+      <View style={wide ? styles.tabsWide : styles.tabs}>
+        {tabs.map((tab) => {
+          const active = tab.match(pathname);
+          const color = active ? palette.tint : palette.tabIconDefault;
+          return (
+            <Pressable
+              key={tab.title}
+              onPress={() => {
+                if (!active || pathname !== tab.href) {
+                  router.navigate(tab.href);
+                }
+              }}
+              style={[
+                wide ? styles.itemWide : styles.item,
+                wide && active ? { backgroundColor: '#FEF6EE' } : null,
+              ]}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={tab.title}>
+              <Icon ios={tab.ios} android={tab.android} color={color} size={wide ? 20 : 24} />
+              <Text style={[wide ? styles.labelWide : styles.label, { color }]}>{tab.title}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {wide ? (
+        <View style={styles.sideWideEnd}>
+          {displayName ? (
+            <Pressable
+              onPress={() => confirmLogout(logout)}
+              hitSlop={8}
+              accessibilityLabel={`${displayName} 로그아웃`}>
+              <Text style={[styles.nameWide, { color: palette.muted }]} numberOfLines={1}>
+                {displayName}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
@@ -141,12 +148,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: 28,
     minHeight: 64,
+  },
+  sideWide: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sideWideEnd: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+  },
+  tabs: {
+    flex: 1,
+    flexDirection: 'row',
+  },
+  tabsWide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 4,
   },
   brand: {
     fontSize: 20,
     fontWeight: '800',
-    marginRight: 20,
   },
   item: {
     flex: 1,
@@ -170,9 +196,6 @@ const styles = StyleSheet.create({
   labelWide: {
     fontSize: 15,
     fontWeight: '700',
-  },
-  spacer: {
-    flex: 1,
   },
   nameWide: {
     fontSize: 14,

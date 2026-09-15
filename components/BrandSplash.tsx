@@ -2,50 +2,42 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, useWindowDimensions, View } from 'react-native';
 
-const logo = require('../assets/images/opening-logo.png');
+export const brandHero = require('../assets/images/login-hero.png');
+
+export function brandFillSize(width: number, height: number) {
+  return Math.min(width, height) * 0.92;
+}
 
 type Props = {
-  onFinish: () => void;
+  onFinish?: () => void;
 };
 
 export function BrandSplash({ onFinish }: Props) {
   const finished = useRef(false);
   const onFinishRef = useRef(onFinish);
   onFinishRef.current = onFinish;
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const opacity = useRef(new Animated.Value(1)).current;
-  const scale = useRef(new Animated.Value(0.92)).current;
-
-  const finish = () => {
-    if (finished.current) {
-      return;
-    }
-    finished.current = true;
-    onFinishRef.current();
-  };
+  const size = brandFillSize(width, height);
 
   useEffect(() => {
     SplashScreen.hideAsync().catch(() => undefined);
+    if (!onFinish) {
+      return;
+    }
 
-    Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 700,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.spring(scale, {
-        toValue: 1,
-        friction: 7,
-        tension: 58,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    const finish = () => {
+      if (finished.current) {
+        return;
+      }
+      finished.current = true;
+      onFinishRef.current?.();
+    };
 
     const hold = setTimeout(() => {
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 380,
+        duration: 420,
         easing: Easing.in(Easing.cubic),
         useNativeDriver: true,
       }).start(({ finished: done }) => {
@@ -53,30 +45,21 @@ export function BrandSplash({ onFinish }: Props) {
           finish();
         }
       });
-    }, 2800);
+    }, 1200);
 
-    const fallback = setTimeout(finish, 5000);
-
+    const fallback = setTimeout(finish, 2800);
     return () => {
       clearTimeout(hold);
       clearTimeout(fallback);
     };
-  }, [opacity, scale]);
+  }, [onFinish, opacity]);
 
   return (
     <View style={styles.screen}>
       <Animated.Image
-        source={logo}
+        source={brandHero}
         resizeMode="contain"
-        style={[
-          styles.logo,
-          {
-            width: width * 0.78,
-            height: width * 0.42,
-            opacity,
-            transform: [{ scale }],
-          },
-        ]}
+        style={{ width: size, height: size, opacity }}
       />
     </View>
   );
@@ -89,8 +72,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  logo: {
-    zIndex: 2,
   },
 });

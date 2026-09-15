@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Model3d" ADD COLUMN "airframe" TEXT NOT NULL DEFAULT '';
+ALTER TABLE "Model3d" ADD COLUMN "category" TEXT NOT NULL DEFAULT '';

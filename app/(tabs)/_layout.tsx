@@ -1,7 +1,6 @@
 import { Tabs } from 'expo-router';
 
 import { Icon } from '@/components/Icon';
-import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 
@@ -20,7 +19,7 @@ export default function TabLayout() {
         },
         headerTintColor: palette.text,
         headerShadowVisible: false,
-        headerShown: useClientOnlyValue(false, true),
+        headerShown: false,
       }}>
       <Tabs.Screen
         name="index"

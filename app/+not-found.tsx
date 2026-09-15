@@ -10,7 +10,7 @@ export default function NotFoundScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: '페이지 없음' }} />
+      <Stack.Screen options={{ title: '' }} />
       <View style={[styles.container, { backgroundColor: palette.background }]}>
         <Text style={[styles.title, { color: palette.text }]}>없는 화면입니다.</Text>
         <Link href="/" style={styles.link}>

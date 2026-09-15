@@ -1,4 +1,4 @@
-import { useFocusEffect, useNavigation } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -24,7 +24,6 @@ const KOREA = { lat: 36.35, lng: 127.85 };
 const ONESTOP_URL = 'https://drone.onestop.go.kr';
 
 export default function FlightScreen() {
-  const navigation = useNavigation();
   const palette = Colors[useColorScheme()];
   const [airspace, setAirspace] = useState<AirspaceLookup | null>(null);
   const [coords, setCoords] = useState<MapCoords>(KOREA);
@@ -77,25 +76,6 @@ export default function FlightScreen() {
     }, 350);
     return () => clearTimeout(timer);
   }, [query, picked]);
-
-  useEffect(() => {
-    navigation.setOptions({
-      title: '비행',
-      headerTitleAlign: 'left',
-      headerRight: () => (
-        <Pressable
-          onPress={() => {
-            void Linking.openURL(ONESTOP_URL);
-          }}
-          hitSlop={8}
-          style={styles.headerAction}
-          accessibilityRole="link"
-          accessibilityLabel="드론원스톱에서 비행승인 신청">
-          <Text style={[styles.headerActionText, { color: palette.tint }]}>승인</Text>
-        </Pressable>
-      ),
-    });
-  }, [navigation, palette.tint]);
 
   const goToCoords = useCallback((next: MapCoords, label: string) => {
     setPicked(true);
@@ -160,6 +140,16 @@ export default function FlightScreen() {
           numberOfLines={2}>
           {status.text || '지도를 탭하면 공역이 표시됩니다'}
         </Text>
+        <Pressable
+          onPress={() => {
+            void Linking.openURL(ONESTOP_URL);
+          }}
+          hitSlop={8}
+          style={styles.headerAction}
+          accessibilityRole="link"
+          accessibilityLabel="드론원스톱에서 비행승인 신청">
+          <Text style={[styles.headerActionText, { color: palette.tint }]}>승인</Text>
+        </Pressable>
       </View>
       <View style={styles.mapArea}>
         <KakaoMapEmbed
@@ -228,12 +218,14 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   statusBar: {
     minHeight: 52,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  statusText: { fontSize: 14, fontWeight: '700', lineHeight: 20 },
+  statusText: { flex: 1, fontSize: 14, fontWeight: '700', lineHeight: 20 },
   mapArea: { flex: 1 },
   overlay: {
     ...StyleSheet.absoluteFillObject,

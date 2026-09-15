@@ -1,13 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { FilterTabs } from '@/components/FilterTabs';
 import { ResourceList } from '@/components/ResourceList';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
-import { detailHref } from '@/lib/nav';
 import { withAuthor } from '@/lib/format';
+import { detailHref } from '@/lib/nav';
 import { repairStatusLabel, type Repair, type RepairStatus } from '@/lib/types';
 import { useApiList } from '@/lib/useApiList';
 
@@ -17,11 +17,26 @@ const tabs: { id: RepairStatus; label: string }[] = [
   { id: 'done', label: '완료' },
 ];
 
+function tabFromParam(value?: string | string[]): RepairStatus {
+  const tab = Array.isArray(value) ? value[0] : value;
+  return tabs.some((item) => item.id === tab) ? (tab as RepairStatus) : 'pending';
+}
+
 export default function RepairsScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ tab?: string }>();
   const { items, ready, error, reload } = useApiList<Repair>('/api/repairs');
-  const [tab, setTab] = useState<RepairStatus>('pending');
+  const [tab, setTab] = useState<RepairStatus>(() => tabFromParam(params.tab));
   const visible = items.filter((item) => item.status === tab);
+
+  useEffect(() => {
+    setTab(tabFromParam(params.tab));
+  }, [params.tab]);
+
+  const selectTab = (next: RepairStatus) => {
+    setTab(next);
+    router.setParams({ tab: next });
+  };
 
   return (
     <ResourceList
@@ -33,7 +48,7 @@ export default function RepairsScreen() {
       createHref="/repair/new"
       createLabel="수리 요청"
       onRetry={reload}
-      header={<FilterTabs value={tab} options={tabs} onChange={setTab} />}>
+      header={<FilterTabs value={tab} options={tabs} onChange={selectTab} />}>
       {visible.map((repair) => (
         <RepairCard key={repair.id} repair={repair} onOpen={() => router.push(detailHref('/repair', repair.id))} />
       ))}

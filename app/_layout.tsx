@@ -34,23 +34,12 @@ const HaemiTheme = {
 };
 
 export default function RootLayout() {
-  const [introDone, setIntroDone] = useState(Platform.OS === 'web');
-
-  useEffect(() => {
-    SplashScreen.hideAsync().catch(() => undefined);
-    if (Platform.OS === 'web') {
-      return;
-    }
-    const timer = setTimeout(() => setIntroDone(true), 4500);
-    return () => clearTimeout(timer);
-  }, []);
-
   return (
     <ThemeProvider value={HaemiTheme}>
       <AuthProvider>
         <View style={styles.root}>
           <StatusBar style="dark" />
-          {introDone ? <SignedInApp /> : <BrandSplash onFinish={() => setIntroDone(true)} />}
+          <SignedInApp />
         </View>
       </AuthProvider>
     </ThemeProvider>
@@ -59,6 +48,7 @@ export default function RootLayout() {
 
 function SignedInApp() {
   const { ready, role } = useAuth();
+  const [introDone, setIntroDone] = useState(Platform.OS === 'web');
 
   useEffect(() => {
     if (Platform.OS === 'web') {
@@ -85,10 +75,13 @@ function SignedInApp() {
   }, [role]);
 
   if (!ready) {
-    return <View style={{ flex: 1, backgroundColor: '#FFFFFF' }} />;
+    return <BrandSplash />;
   }
   if (!role) {
     return <LoginScreen />;
+  }
+  if (!introDone) {
+    return <BrandSplash onFinish={() => setIntroDone(true)} />;
   }
   if (Platform.OS === 'web') {
     return <RootLayoutNav />;
@@ -122,32 +115,36 @@ function RootLayoutNav() {
   return (
     <View style={styles.shell}>
       {wide ? <AppTabBar /> : null}
-      <View style={styles.stack}>
+      <View style={[styles.stack, Platform.OS === 'web' && styles.stackWeb]}>
         <Stack
           screenOptions={{
             headerStyle: { backgroundColor: '#FFFFFF' },
             headerTintColor: '#F07D22',
-            headerTitleStyle: { color: '#1A1A1A' },
+            headerTitle: '',
+            headerBackTitle: '',
             headerShadowVisible: false,
-            contentStyle: { backgroundColor: '#FFFFFF' },
+            contentStyle: {
+              backgroundColor: '#FFFFFF',
+              ...(Platform.OS === 'web' ? { flex: 1, overflow: 'auto' } : null),
+            },
           }}>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="spot/new" options={{ title: '스팟 등록', presentation: 'modal' }} />
-          <Stack.Screen name="spot/edit/[id]" options={{ title: '스팟 수정', presentation: 'modal' }} />
-          <Stack.Screen name="spot/map" options={{ title: '지도' }} />
-          <Stack.Screen name="spot/[id]" options={{ title: '스팟' }} />
-          <Stack.Screen name="repair/new" options={{ title: '수리 요청', presentation: 'modal' }} />
-          <Stack.Screen name="repair/[id]" options={{ title: '수리' }} />
-          <Stack.Screen name="notice/new" options={{ title: '공지 작성', presentation: 'modal' }} />
-          <Stack.Screen name="notice/edit/[id]" options={{ title: '공지 수정', presentation: 'modal' }} />
-          <Stack.Screen name="notice/[id]" options={{ title: '공지' }} />
-          <Stack.Screen name="vote/new" options={{ title: '투표 만들기', presentation: 'modal' }} />
-          <Stack.Screen name="vote/edit/[id]" options={{ title: '투표 수정', presentation: 'modal' }} />
-          <Stack.Screen name="vote/[id]" options={{ title: '투표' }} />
-          <Stack.Screen name="model/new" options={{ title: '3D 파일 등록', presentation: 'modal' }} />
-          <Stack.Screen name="model/[id]" options={{ title: '3D 파일' }} />
-          <Stack.Screen name="model/edit/[id]" options={{ title: '3D 파일 수정', presentation: 'modal' }} />
-          <Stack.Screen name="game/ranks" options={{ title: '랭킹' }} />
+          <Stack.Screen name="spot/new" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="spot/edit/[id]" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="spot/map" options={{ title: '' }} />
+          <Stack.Screen name="spot/[id]" options={{ title: '' }} />
+          <Stack.Screen name="repair/new" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="repair/[id]" options={{ title: '' }} />
+          <Stack.Screen name="notice/new" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="notice/edit/[id]" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="notice/[id]" options={{ title: '' }} />
+          <Stack.Screen name="vote/new" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="vote/edit/[id]" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="vote/[id]" options={{ title: '' }} />
+          <Stack.Screen name="model/new" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="model/[id]" options={{ title: '' }} />
+          <Stack.Screen name="model/edit/[id]" options={{ title: '', presentation: 'modal' }} />
+          <Stack.Screen name="game/ranks" options={{ title: '' }} />
         </Stack>
       </View>
       {wide ? null : <AppTabBar />}
@@ -167,5 +164,8 @@ const styles = StyleSheet.create({
   stack: {
     flex: 1,
     minHeight: 0,
+  },
+  stackWeb: {
+    overflow: 'hidden',
   },
 });

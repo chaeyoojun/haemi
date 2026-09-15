@@ -7,6 +7,7 @@ import { PhotoAttach, type PickedPhoto } from '@/components/PhotoAttach';
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { appendLocalFile } from '@/lib/formData';
+import { MODEL_CATEGORIES } from '@/lib/modelCatalog';
 
 export type PickedFile = {
   uri: string;
@@ -18,11 +19,15 @@ export type PickedFile = {
 
 export type ModelFormValues = {
   title: string;
+  airframe: string;
+  category: string;
   format: string;
   fileName: string;
   url: string;
   description: string;
   pin?: string;
+  cover: PickedPhoto[];
+  extras: PickedPhoto[];
 };
 
 export function fileStem(name: string) {
@@ -95,6 +100,7 @@ export function ModelForm({
   onFiles,
   allowMultiple = false,
   requirePin = false,
+  airframeHints = [],
   error,
   saving,
   submitLabel,
@@ -106,6 +112,7 @@ export function ModelForm({
   onFiles: (files: PickedFile[]) => void;
   allowMultiple?: boolean;
   requirePin?: boolean;
+  airframeHints?: string[];
   error: string;
   saving: boolean;
   submitLabel: string;
@@ -150,8 +157,77 @@ export function ModelForm({
 
   return (
     <View style={styles.form}>
+      <Field label="기체명 (폴더)">
+        <Input
+          value={values.airframe}
+          onChangeText={(value) => set('airframe', value)}
+          placeholder="스피디비 마스터5 V3"
+        />
+        <Text style={[styles.hint, { color: palette.muted }]}>
+          같은 기체명으로 올리면 검색할 때 함께 찾을 수 있습니다.
+        </Text>
+        {airframeHints.length > 0 ? (
+          <View style={styles.chips}>
+            {airframeHints.map((hint) => {
+              const selected = values.airframe.trim() === hint;
+              return (
+                <Pressable
+                  key={hint}
+                  onPress={() => set('airframe', selected ? '' : hint)}
+                  style={[
+                    styles.chip,
+                    { borderColor: selected ? palette.tint : palette.border },
+                    selected ? { backgroundColor: palette.tint } : null,
+                  ]}>
+                  <Text style={[styles.chipText, { color: selected ? '#FFFFFF' : palette.text }]}>{hint}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : null}
+      </Field>
+      <Field label="구분">
+        <Input value={values.category} onChangeText={(value) => set('category', value)} placeholder="프레임, 안테나, 범퍼" />
+        <View style={styles.chips}>
+          {MODEL_CATEGORIES.map((item) => {
+            const selected = values.category.trim() === item;
+            return (
+              <Pressable
+                key={item}
+                onPress={() => set('category', selected ? '' : item)}
+                style={[
+                  styles.chip,
+                  { borderColor: selected ? palette.tint : palette.border },
+                  selected ? { backgroundColor: palette.tint } : null,
+                ]}>
+                <Text style={[styles.chipText, { color: selected ? '#FFFFFF' : palette.text }]}>{item}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </Field>
       <Field label="이름">
         <Input value={values.title} onChangeText={(value) => set('title', value)} placeholder="고글 안테나 마운트" />
+      </Field>
+      <Field label="대표 미리보기">
+        <PhotoAttach
+          photos={values.cover}
+          maxPhotos={1}
+          label="대표 사진"
+          formats={['jpg', 'jpeg', 'png']}
+          onChange={(cover) => onChange({ ...values, cover })}
+        />
+        <Text style={[styles.hint, { color: palette.muted }]}>목록 카드에는 이 사진 한 장만 보입니다.</Text>
+      </Field>
+      <Field label="추가 사진">
+        <PhotoAttach
+          photos={values.extras}
+          maxPhotos={8}
+          label="추가 사진"
+          formats={['jpg', 'jpeg', 'png']}
+          onChange={(extras) => onChange({ ...values, extras })}
+        />
+        <Text style={[styles.hint, { color: palette.muted }]}>상세 화면에서 볼 수 있습니다. JPG, JPEG, PNG.</Text>
       </Field>
       <Field label="형식">
         <Input value={values.format} onChangeText={(value) => set('format', value)} placeholder="STL, OBJ, 3MF, STEP, GLB" />
@@ -234,12 +310,20 @@ export function toModelFilesFormData(files: PickedFile[]) {
 export function toModelFormData(values: ModelFormValues, files: PickedFile[]) {
   const form = toModelFilesFormData(files);
   form.append('title', values.title);
+  form.append('airframe', values.airframe);
+  form.append('category', values.category);
   form.append('format', values.format);
   form.append('fileName', values.fileName);
   form.append('url', values.url);
   form.append('description', values.description);
   if (values.pin) {
     form.append('pin', values.pin);
+  }
+  for (const photo of values.cover) {
+    appendLocalFile(form, 'cover', photo);
+  }
+  for (const photo of values.extras) {
+    appendLocalFile(form, 'extras', photo);
   }
   return form;
 }
@@ -258,6 +342,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   pickText: { fontSize: 15, fontWeight: '700' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  chipText: { fontSize: 13, fontWeight: '700' },
   submit: { borderRadius: 14, paddingVertical: 16, alignItems: 'center' },
   submitText: { color: '#FFFFFF', fontSize: 16, fontWeight: '700' },
 });

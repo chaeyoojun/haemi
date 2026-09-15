@@ -1,4 +1,3 @@
-import { ScrollViewStyleReset } from 'expo-router/html';
 import type { ReactNode } from 'react';
 
 export default function Root({ children }: { children: ReactNode }) {
@@ -9,7 +8,6 @@ export default function Root({ children }: { children: ReactNode }) {
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
         <title>HMFPV</title>
-        <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: responsiveBackground }} />
       </head>
       <body>{children}</body>
@@ -23,9 +21,11 @@ html, body, #root {
 }
 body {
   margin: 0;
+  overflow: hidden;
   background-color: #FFFFFF;
 }
 #root {
   display: flex;
+  flex-direction: column;
 }
 `;

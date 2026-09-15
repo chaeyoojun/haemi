@@ -90,17 +90,20 @@ model VoteBallot {
 }
 
 model Model3d {
-  id          String        @id @default(cuid())
+  id          String         @id @default(cuid())
   title       String
-  format      String        @default("")
-  fileName    String        @default("")
-  url         String        @default("")
-  description String        @default("")
-  author      String        @default("")
-  pinHash     String        @default("")
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  airframe    String         @default("")
+  category    String         @default("")
+  format      String         @default("")
+  fileName    String         @default("")
+  url         String         @default("")
+  description String         @default("")
+  author      String         @default("")
+  pinHash     String         @default("")
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
   files       Model3dFile[]
+  images      Model3dImage[]
 }
 
 model Model3dFile {
@@ -124,6 +127,18 @@ model Model3dPreview {
   file      Model3dFile @relation(fields: [fileId], references: [id], onDelete: Cascade)
 
   @@index([fileId])
+}
+
+model Model3dImage {
+  id        String   @id @default(cuid())
+  modelId   String
+  fileName  String   @default("")
+  kind      String   @default("extra")
+  sort      Int      @default(0)
+  createdAt DateTime @default(now())
+  model     Model3d  @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([modelId])
 }
 
 model PushToken {

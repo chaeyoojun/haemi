@@ -9,6 +9,7 @@ import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
 import { api } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { uniqueValues } from '@/lib/modelCatalog';
 import { forgetModelPin, modelPin, modelPinHeaders, unlockOrSetModelPin } from '@/lib/modelPin';
 import { detailHref } from '@/lib/nav';
 import type { Model3d } from '@/lib/types';
@@ -27,6 +28,7 @@ export default function EditModelScreen() {
   const [unlocked, setUnlocked] = useState(false);
   const [pinError, setPinError] = useState('');
   const [unlocking, setUnlocking] = useState(false);
+  const [airframeHints, setAirframeHints] = useState<string[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -35,10 +37,14 @@ export default function EditModelScreen() {
       .then((model) => {
         setValues({
           title: model.title,
+          airframe: model.airframe || '',
+          category: model.category || '',
           format: model.format,
           fileName: model.fileName,
           url: model.url,
           description: model.description,
+          cover: [],
+          extras: [],
         });
         const pinned = Boolean(model.hasPin);
         setHasPin(pinned);
@@ -49,6 +55,10 @@ export default function EditModelScreen() {
         setError(caught instanceof Error ? caught.message : '불러오지 못했습니다.');
         setReady(true);
       });
+    api
+      .list<Model3d>('/api/models')
+      .then((models) => setAirframeHints(uniqueValues(models.map((item) => item.airframe))))
+      .catch(() => setAirframeHints([]));
   }, [id, isAdmin]);
 
   if (!id) {
@@ -137,6 +147,7 @@ export default function EditModelScreen() {
         onChange={setValues}
         files={file ? [file] : []}
         onFiles={(next) => setFile(next[0] ?? null)}
+        airframeHints={airframeHints}
         error={error}
         saving={saving}
         submitLabel="수정"

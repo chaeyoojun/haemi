@@ -198,6 +198,26 @@ export default function ModelDetailScreen() {
                 />
               </View>
               {model.format ? <Text style={[styles.meta, { color: palette.tint }]}>{model.format}</Text> : null}
+              {model.airframe || model.category ? (
+                <Text style={[styles.meta, { color: palette.tint }]}>
+                  {[model.airframe, model.category].filter(Boolean).join(' · ')}
+                </Text>
+              ) : null}
+              {model.cover || (model.photos && model.photos.length > 0) ? (
+                <View style={styles.gallery}>
+                  {model.cover ? (
+                    <Image source={{ uri: fileUrl(model.cover.url) }} style={styles.coverPhoto} resizeMode="cover" />
+                  ) : null}
+                  {(model.photos || []).map((photo) => (
+                    <Image
+                      key={photo.id}
+                      source={{ uri: fileUrl(photo.url) }}
+                      style={styles.extraPhoto}
+                      resizeMode="cover"
+                    />
+                  ))}
+                </View>
+              ) : null}
               {model.description ? <Text style={[styles.body, { color: palette.text }]}>{model.description}</Text> : null}
               <Text style={[styles.body, { color: palette.muted }]}>{formatAuthorTime(model.author, model.createdAt)}</Text>
               {!model.hasPin ? (
@@ -359,6 +379,9 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28, overflow: 'visible', zIndex: 2 },
   title: { flex: 1, fontSize: 24, fontWeight: '700' },
   meta: { fontSize: 16, fontWeight: '600' },
+  gallery: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  coverPhoto: { width: 160, height: 160, borderRadius: 12, backgroundColor: '#F4F4F4' },
+  extraPhoto: { width: 88, height: 88, borderRadius: 12, backgroundColor: '#F4F4F4' },
   body: { fontSize: 16, lineHeight: 24 },
   section: { fontSize: 15, fontWeight: '800' },
   fileRow: {

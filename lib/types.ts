@@ -96,6 +96,14 @@ export type Model3dPreview = {
   createdAt: string;
 };
 
+export type Model3dImage = {
+  id: string;
+  fileName: string;
+  kind: 'cover' | 'extra';
+  url: string;
+  createdAt: string;
+};
+
 export type Model3dFile = {
   id: string;
   fileName: string;
@@ -108,6 +116,8 @@ export type Model3dFile = {
 export type Model3d = {
   id: string;
   title: string;
+  airframe?: string;
+  category?: string;
   format: string;
   fileName: string;
   url: string;
@@ -116,6 +126,8 @@ export type Model3d = {
   hasPin?: boolean;
   createdAt: string;
   updatedAt: string;
+  cover?: Model3dImage | null;
+  photos?: Model3dImage[];
   files?: Model3dFile[];
 };
 

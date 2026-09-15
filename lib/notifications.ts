@@ -1,17 +1,33 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
-import * as Notifications from 'expo-notifications';
 import { Alert, Platform } from 'react-native';
 
 import { api } from '@/lib/api';
 
 const ASKED_KEY = 'haemi.askedNotifications';
 
+type NotificationsModule = typeof import('expo-notifications');
+
+function loadNotifications(): NotificationsModule | null {
+  if (Constants.appOwnership === 'expo') {
+    return null;
+  }
+  try {
+    return require('expo-notifications') as NotificationsModule;
+  } catch {
+    return null;
+  }
+}
+
 function projectId() {
   return Constants.expoConfig?.extra?.eas?.projectId ?? Constants.easConfig?.projectId;
 }
 
 async function prepareNotifications() {
+  const Notifications = loadNotifications();
+  if (!Notifications) {
+    return null;
+  }
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldPlaySound: true,
@@ -31,9 +47,10 @@ async function prepareNotifications() {
     await Notifications.setNotificationChannelAsync('notices', { ...channel, name: '공지' });
     await Notifications.setNotificationChannelAsync('votes', { ...channel, name: '투표' });
   }
+  return Notifications;
 }
 
-async function registerToken() {
+async function registerToken(Notifications: NotificationsModule) {
   const id = projectId();
   if (!id) {
     return;
@@ -44,7 +61,7 @@ async function registerToken() {
   }
 }
 
-async function requestSystemPermission() {
+async function requestSystemPermission(Notifications: NotificationsModule) {
   const result = await Notifications.requestPermissionsAsync({
     ios: {
       allowAlert: true,
@@ -57,20 +74,27 @@ async function requestSystemPermission() {
 
 export async function registerPushToken() {
   try {
-    await prepareNotifications();
+    const Notifications = await prepareNotifications();
+    if (!Notifications) {
+      return;
+    }
     const existing = await Notifications.getPermissionsAsync();
     if (existing.status !== 'granted') {
       return;
     }
-    await registerToken();
+    await registerToken(Notifications);
   } catch (error) {
     console.warn('push token registration failed', error);
   }
 }
 
 export function listenForNotificationOpen(openUrl: (url: string) => void) {
+  const Notifications = loadNotifications();
+  if (!Notifications) {
+    return () => {};
+  }
   let lastHandled = '';
-  const open = (response: Notifications.NotificationResponse | null) => {
+  const open = (response: import('expo-notifications').NotificationResponse | null) => {
     const id = response?.notification.request.identifier ?? '';
     const url = response?.notification.request.content.data?.url;
     if (!id || id === lastHandled || typeof url !== 'string' || !url.startsWith('/')) {
@@ -87,10 +111,13 @@ export function listenForNotificationOpen(openUrl: (url: string) => void) {
 
 export async function promptAndRegisterNotifications() {
   try {
-    await prepareNotifications();
+    const Notifications = await prepareNotifications();
+    if (!Notifications) {
+      return;
+    }
     const existing = await Notifications.getPermissionsAsync();
     if (existing.status === 'granted') {
-      await registerToken();
+      await registerToken(Notifications);
       await syncVoteEndAlerts();
       return;
     }
@@ -112,10 +139,10 @@ export async function promptAndRegisterNotifications() {
         text: '허용',
         onPress: () => {
           AsyncStorage.setItem(ASKED_KEY, '1').catch(() => undefined);
-          requestSystemPermission()
+          requestSystemPermission(Notifications)
             .then((granted) => {
               if (granted) {
-                return registerToken().then(() => syncVoteEndAlerts());
+                return registerToken(Notifications).then(() => syncVoteEndAlerts());
               }
             })
             .catch((error) => {
@@ -143,7 +170,10 @@ type VoteAlert = {
 
 export async function syncVoteEndAlerts(votes?: VoteAlert[]) {
   try {
-    await prepareNotifications();
+    const Notifications = await prepareNotifications();
+    if (!Notifications) {
+      return;
+    }
     const permission = await Notifications.getPermissionsAsync();
     if (permission.status !== 'granted') {
       return;

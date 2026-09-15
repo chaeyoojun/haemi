@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, type ScrollViewProps } from 'react-native';
+import { Platform, RefreshControl, ScrollView, StyleSheet, type ScrollViewProps } from 'react-native';
 
 import { useColorScheme } from '@/components/useColorScheme';
 import Colors from '@/constants/Colors';
@@ -20,23 +20,25 @@ export function RefreshableScroll({ onRefresh, children, contentContainerStyle, 
       {...rest}
       style={[styles.fill, style]}
       contentContainerStyle={[styles.grow, constrained, contentContainerStyle]}
-      alwaysBounceVertical
+      alwaysBounceVertical={Platform.OS !== 'web'}
       overScrollMode="always"
       keyboardShouldPersistTaps={rest.keyboardShouldPersistTaps ?? 'handled'}
       refreshControl={
-        <RefreshControl
-          refreshing={refreshing}
-          onRefresh={async () => {
-            setRefreshing(true);
-            try {
-              await onRefresh();
-            } finally {
-              setRefreshing(false);
-            }
-          }}
-          tintColor={palette.tint}
-          colors={[palette.tint]}
-        />
+        Platform.OS === 'web' ? undefined : (
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              try {
+                await onRefresh();
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            tintColor={palette.tint}
+            colors={[palette.tint]}
+          />
+        )
       }>
       {children}
     </ScrollView>

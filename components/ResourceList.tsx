@@ -1,6 +1,6 @@
 import { Link, type Href } from 'expo-router';
 import type { ReactNode } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Icon } from '@/components/Icon';
 import { RefreshableScroll } from '@/components/RefreshableScroll';
@@ -19,6 +19,7 @@ type Props = {
   canCreate?: boolean;
   header?: ReactNode;
   table?: boolean;
+  flush?: boolean;
   onRetry: () => void | Promise<void>;
   children: ReactNode;
 };
@@ -34,6 +35,7 @@ export function ResourceList({
   canCreate = true,
   header,
   table = false,
+  flush = false,
   onRetry,
   children,
 }: Props) {
@@ -41,10 +43,9 @@ export function ResourceList({
   const wide = useWideLayout();
 
   return (
-    <View style={[styles.screen, { backgroundColor: palette.background }]}>
-      <View style={[styles.main, wide ? styles.mainWide : null]}>
+    <View style={[styles.screen, Platform.OS === 'web' && styles.screenWeb, { backgroundColor: palette.background }]}>
+      <RefreshableScroll onRefresh={onRetry} contentContainerStyle={styles.content}>
         {header}
-        <RefreshableScroll onRefresh={onRetry} contentContainerStyle={styles.content}>
         {error ? (
           <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <Text style={[styles.body, { color: palette.danger }]}>{error}</Text>
@@ -59,17 +60,22 @@ export function ResourceList({
         ) : (
           <View
             style={
-              table ? [styles.table, { borderColor: palette.border }] : wide ? styles.grid : undefined
+              table
+                ? [styles.table, { borderColor: palette.border }]
+                : flush
+                  ? styles.flush
+                  : wide
+                    ? styles.grid
+                    : undefined
             }>
             {children}
           </View>
         )}
       </RefreshableScroll>
-      </View>
       {canCreate ? (
         <Link href={createHref} asChild>
           <Pressable
-            style={StyleSheet.flatten([styles.fab, { backgroundColor: palette.tint }])}
+            style={StyleSheet.flatten([styles.fab, Platform.OS === 'web' && styles.fabWeb, { backgroundColor: palette.tint }])}
             accessibilityLabel={createLabel}>
             <Icon ios="plus" android="add" color="#FFFFFF" size={28} />
           </Pressable>
@@ -83,6 +89,7 @@ export function ItemCard({
   title,
   meta,
   body,
+  badge,
   thumbs,
   onPress,
   more,
@@ -91,6 +98,7 @@ export function ItemCard({
   title: string;
   meta?: string;
   body?: string;
+  badge?: string;
   thumbs?: string[];
   onPress: () => void;
   more?: ReactNode;
@@ -103,6 +111,11 @@ export function ItemCard({
       <Pressable onPress={onPress} style={[styles.tableRow, thumbs ? styles.tableCard : null, { borderBottomColor: palette.border }]}>
         <View style={styles.tableMain}>
           <View style={styles.tableHead}>
+            {badge ? (
+              <Text style={[styles.badge, { color: palette.tint, borderColor: palette.tint }]} numberOfLines={1}>
+                {badge}
+              </Text>
+            ) : null}
             <Text style={[styles.tableTitle, { color: palette.text }]} numberOfLines={2}>
               {title}
             </Text>
@@ -112,6 +125,11 @@ export function ItemCard({
               </Text>
             ) : null}
           </View>
+          {body ? (
+            <Text style={[styles.tableBody, { color: palette.muted }]} numberOfLines={2}>
+              {body}
+            </Text>
+          ) : null}
           {thumbs ? (
             <View style={styles.thumbs}>
               {thumbs.length > 0 ? (
@@ -173,9 +191,9 @@ export function ItemCard({
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
-  main: { flex: 1, width: '100%' },
-  mainWide: { maxWidth: 1080, alignSelf: 'center' },
+  screenWeb: { minHeight: '100%' },
   content: { padding: 20, paddingBottom: 96, gap: 12, width: '100%' },
+  flush: { width: '100%' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   card: { borderWidth: 1, borderRadius: 16, paddingHorizontal: 20, paddingVertical: 20, gap: 8 },
   cardWide: { flexGrow: 1, flexBasis: 360, maxWidth: '100%' },
@@ -213,6 +231,17 @@ const styles = StyleSheet.create({
   tableHead: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   tableTitle: { flex: 1, fontSize: 16, fontWeight: '700' },
   tableMeta: { flexShrink: 0, fontSize: 13, fontWeight: '600' },
+  tableBody: { fontSize: 13, lineHeight: 18 },
+  badge: {
+    flexShrink: 0,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    fontSize: 12,
+    fontWeight: '700',
+    overflow: 'hidden',
+  },
   thumbs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   thumb: {
     width: 88,
@@ -239,6 +268,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   primaryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
+  fabWeb: {
+    position: 'fixed',
+  },
   fab: {
     position: 'absolute',
     right: 20,

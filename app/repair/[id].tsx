@@ -1,6 +1,6 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, Text, View } from 'react-native';
 
 import { InlineMoreActions } from '@/components/InlineMoreActions';
 import { RefreshableScroll } from '@/components/RefreshableScroll';
@@ -9,6 +9,7 @@ import Colors from '@/constants/Colors';
 import { api, fileUrl } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { formatAuthorTime } from '@/lib/format';
+import { confirmAction, showNotice } from '@/lib/notice';
 import { repairStatusLabel, type Repair, type RepairStatus } from '@/lib/types';
 
 export default function RepairDetailScreen() {
@@ -19,6 +20,7 @@ export default function RepairDetailScreen() {
   const [repair, setRepair] = useState<Repair | null>(null);
   const [error, setError] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
+  const [notice, setNotice] = useState('');
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -34,12 +36,27 @@ export default function RepairDetailScreen() {
     load();
   }, [load]);
 
-  const setStatus = async (status: RepairStatus) => {
-    if (!repair) return;
+  useEffect(() => {
+    if (!notice) {
+      return;
+    }
+    const timer = setTimeout(() => setNotice(''), 2500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const setStatus = async (next: RepairStatus) => {
+    if (!repair) {
+      return;
+    }
+    if (repair.status === next) {
+      setNotice(`이미 ${repairStatusLabel[next]} 상태입니다.`);
+      return;
+    }
     try {
-      setRepair(await api.patch<Repair>(`/api/repairs/${repair.id}`, { status }));
+      setRepair(await api.patch<Repair>(`/api/repairs/${repair.id}`, { status: next }));
+      setNotice(`수리 상태를 ${repairStatusLabel[next]}(으)로 바꿨습니다.`);
     } catch (caught) {
-      Alert.alert('상태를 바꾸지 못했습니다.', caught instanceof Error ? caught.message : '');
+      showNotice('상태를 바꾸지 못했습니다.', caught instanceof Error ? caught.message : '');
     }
   };
 
@@ -53,7 +70,13 @@ export default function RepairDetailScreen() {
         ) : !repair ? (
           <ActivityIndicator color={palette.tint} style={{ marginTop: 24 }} />
         ) : (
-          <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
+          <>
+            {notice ? (
+              <View style={[styles.notice, { backgroundColor: '#FEF6EE', borderColor: palette.tint }]}>
+                <Text style={[styles.noticeText, { color: palette.tint }]}>{notice}</Text>
+              </View>
+            ) : null}
+            <View style={[styles.card, { backgroundColor: palette.card, borderColor: palette.border }]}>
             <View style={styles.header}>
               <Text style={[styles.title, { color: palette.text }]} numberOfLines={1}>
                 {repair.title}
@@ -70,17 +93,15 @@ export default function RepairDetailScreen() {
                       label: '삭제',
                       danger: true,
                       onPress: () =>
-                        Alert.alert('수리 요청을 삭제할까요?', repair.title, [
-                          { text: '취소', style: 'cancel' },
-                          {
-                            text: '삭제',
-                            style: 'destructive',
-                            onPress: async () => {
-                              await api.remove(`/api/repairs/${repair.id}`);
-                              router.replace('/repairs');
-                            },
-                          },
-                        ]),
+                        confirmAction('수리 요청을 삭제할까요?', repair.title, async () => {
+                          try {
+                            await api.remove(`/api/repairs/${repair.id}`);
+                            showNotice('수리 요청을 삭제했습니다.');
+                            router.replace('/repairs');
+                          } catch (caught) {
+                            showNotice('삭제하지 못했습니다.', caught instanceof Error ? caught.message : '');
+                          }
+                        }, '삭제'),
                     },
                   ]}
                 />
@@ -98,6 +119,7 @@ export default function RepairDetailScreen() {
             {repair.description ? <Text style={[styles.body, { color: palette.text }]}>{repair.description}</Text> : null}
             <Text style={[styles.body, { color: palette.muted }]}>{formatAuthorTime(repair.author, repair.createdAt)}</Text>
           </View>
+          </>
         )}
       </RefreshableScroll>
     </View>
@@ -108,6 +130,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: { padding: 20, gap: 12, paddingBottom: 40 },
   card: { borderWidth: 1, borderRadius: 16, padding: 20, gap: 10 },
+  notice: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 },
+  noticeText: { fontSize: 15, fontWeight: '700' },
   header: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 28, overflow: 'visible', zIndex: 2 },
   title: { flex: 1, fontSize: 24, fontWeight: '700' },
   meta: { fontSize: 16, fontWeight: '600' },
